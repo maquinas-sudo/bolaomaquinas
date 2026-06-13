@@ -1,131 +1,210 @@
-import os
-import requests
-import psycopg2
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify
-from datetime import datetime, timedelta, timezone
-
-app = Flask(__name__)
-app.secret_key = 'chave_secreta_super_segura'
-
-USUARIOS_PERMITIDOS = {
-    "Joao mano": "JMOV123", "Lucas": "LCS123", "Matheus": "MCINTRA123",
-    "Pedro": "PHACY123", "Joao Vitor": "JVND123", "Magno": "GMAS123",
-    "Salsicha": "AVRZ123", "Teste": "teste", "Sauer": "admin123"
-}
-
-cache_jogos = {"dados": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": False}
-
-def obter_jogos_copa():
-    agora = datetime.now(timezone.utc)
-    minutos_espera = 4 if cache_jogos["tem_jogo_ao_vivo"] else 60
-    if cache_jogos["ultima_atualizacao"] and (agora - cache_jogos["ultima_atualizacao"]) < timedelta(minutes=minutos_espera):
-        return cache_jogos["dados"]
-    
-    url = "https://api.football-data.org/v4/competitions/WC/matches"
-    headers = { 'X-Auth-Token': os.environ.get('API_KEY') }
-    
-    try:
-        response = requests.get(url, headers=headers)
-        dados_api = response.json()
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Arena | Bolão Máquinas</title>
+    <style>
+        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header h2 { color: #fff; margin: 0; }
         
-        if 'matches' not in dados_api:
-            return cache_jogos["dados"]
+        .caixa-infos { display: flex; align-items: center; gap: 20px; }
+        .hodometro { background: #333; padding: 10px 15px; border-radius: 5px; border: 1px solid #ffcc00; font-weight: bold; color: #ffcc00; }
+        .btn-publico { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; border: none; }
         
-        jogos_reais = []
-        tem_ao_vivo_agora = False
-        for match in dados_api.get('matches', []):
-            time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
-            time_b = match.get('awayTeam', {}).get('shortName') or match.get('awayTeam', {}).get('name') or "A Definir"
-            gols_a = match.get('score', {}).get('fullTime', {}).get('home')
-            gols_b = match.get('score', {}).get('fullTime', {}).get('away')
-            status_api = match.get('status')
+        .status-ao-vivo { color: red; font-weight: bold; }
+        .status-resultados { color: yellow; font-weight: bold; }
+        .status-em-breve { color: white; font-weight: bold; }
+        
+        .jogo-row { background: #2a2a2a; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; cursor: pointer; border: 1px solid #333; transition: 0.2s; }
+        .jogo-row:hover { border-color: #ffcc00; }
+        .info-jogo { flex-grow: 1; }
+        .placar-box { font-size: 1.5em; color: #fff; font-weight: bold; background: #111; padding: 5px 15px; border-radius: 5px; margin-left: 15px; text-align: center; }
+        
+        .trofeu-rei { color: #00ff00; font-size: 0.85em; margin-top: 5px; background: rgba(0,255,0,0.1); display: inline-block; padding: 3px 8px; border-radius: 3px; border: 1px solid #00ff00; }
+
+        #modal-aposta { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 30px; border-radius: 10px; border: 2px solid #ffcc00; width: 400px; z-index: 1000; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        
+        .input-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .input-group input { width: 60px; padding: 5px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; text-align: center; }
+        
+        #btn-confirmar { width: 100%; padding: 15px; background: #ffcc00; color: #000; border: none; font-weight: bold; font-size: 1.1em; border-radius: 5px; cursor: pointer; margin-top: 15px; }
+        #btn-confirmar:disabled { background: #555; color: #888; cursor: not-allowed; }
+        #msg-retorno { display: none; padding: 15px; text-align: center; font-weight: bold; border-radius: 5px; margin-top: 15px; }
+        .msg-sucesso { background: #00ff00; color: #000; }
+        .msg-erro { background: #ff4444; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>⚽ Arena | Jogador: {{ usuario }}</h2>
+    <div class="caixa-infos">
+        <div class="hodometro">Suas Apostas: R$ {{ gasto }}</div>
+        <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">ACOMPANHE AS APOSTAS</a>
+    </div>
+</div>
+
+{% if jogos|length == 0 %}
+    <div style="text-align: center; margin-top: 50px; background: #222; padding: 30px; border-radius: 10px; border: 1px solid #555;">
+        <h3 style="color: #ffcc00; margin-top: 0;">⏳ Aguardando os próximos jogos...</h3>
+        <p>A API está processando os confrontos da Copa do Mundo ou não há partidas programadas para as próximas horas.</p>
+    </div>
+{% else %}
+    {% for jogo in jogos %}
+    <div class="jogo-row" onclick="abrirModal({{ jogo.id }}, '{{ jogo.time_a }}', '{{ jogo.time_b }}', '{{ jogo.status }}')">
+        <div class="info-jogo">
+            <div style="font-size: 1.2em;"><b>{{ jogo.time_a }}</b> vs <b>{{ jogo.time_b }}</b></div>
+            <div class="{% if jogo.status == 'AO VIVO' %}status-ao-vivo{% elif jogo.status == 'RESULTADOS' %}status-resultados{% else %}status-em-breve{% endif %}">
+                {{ jogo.status }}
+            </div>
             
-            placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}"
-            status = "AO VIVO" if status_api in ['IN_PLAY', 'PAUSED'] else ("RESULTADOS" if status_api in ['FINISHED', 'AWARDED'] else "EM BREVE")
-            if status == "AO VIVO": tem_ao_vivo_agora = True
-            
-            dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            
-            jogos_reais.append({
-                "id": match['id'], "time_a": time_a, "time_b": time_b, "placar": placar,
-                "status": status, "timestamp": dt_obj.timestamp(),
-                "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
-                "gols_b_real": str(gols_b) if gols_b is not None else "N/A"
-            })
-        jogos_reais.sort(key=lambda x: x['timestamp'])
-        cache_jogos.update({"dados": jogos_reais[:10], "ultima_atualizacao": agora, "tem_jogo_ao_vivo": tem_ao_vivo_agora})
-        return cache_jogos["dados"]
-    except Exception as e:
-        print(f"Erro ao buscar jogos: {e}")
-        return cache_jogos["dados"]
+            {% if jogo.status == 'RESULTADOS' and jogo.vencedores_placar|length > 0 %}
+                <div class="trofeu-rei">🏆 Acertou o Placar: {{ jogo.vencedores_placar|join(', ') }}</div>
+            {% endif %}
+        </div>
+        <div class="placar-box">{{ jogo.placar }}</div>
+    </div>
+    {% endfor %}
+{% endif %}
 
-def get_db_connection(): return psycopg2.connect(os.environ['DATABASE_URL'])
+<div class="overlay" id="overlay" onclick="fecharModal()"></div>
 
-def criar_tabela():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS palpites (id SERIAL PRIMARY KEY, usuario VARCHAR(50), jogo_id INT, gols_a VARCHAR(10), gols_b VARCHAR(10), escanteios VARCHAR(10), amarelos VARCHAR(10), vermelhos VARCHAR(10), subs VARCHAR(10), acrescimo VARCHAR(10))''')
-        for col in ['escanteios', 'amarelos', 'vermelhos', 'subs', 'acrescimo']:
-            try: 
-                cur.execute(f'ALTER TABLE palpites ADD COLUMN {col} VARCHAR(10)')
-            except: 
-                conn.rollback()
-        conn.commit(); cur.close(); conn.close()
-    except Exception as e: 
-        print("Erro na tabela:", e)
-
-criar_tabela()
-
-@app.route('/')
-def index():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo FROM palpites WHERE usuario = %s", (session['usuario'],))
-    apostas = cur.fetchall()
-    gasto = sum([1 for p in apostas for f in p if f and f.strip()]) * 0.50
+<div id="modal-aposta">
+    <h3 style="color: white; margin-top: 0;" id="modal-titulo">Jogo</h3>
+    <p style="color: #aaa; font-size: 0.9em;">Preencha entre 0 e 90. Custo: R$ 0,50 por palpite.</p>
     
-    jogos = obter_jogos_copa()
-    for jogo in jogos:
-        jogo['vencedores_placar'] = []
-        if jogo['status'] == 'RESULTADOS' and jogo['gols_a_real'] != "N/A":
-            cur.execute("SELECT usuario FROM palpites WHERE jogo_id = %s AND gols_a = %s AND gols_b = %s", (jogo['id'], jogo['gols_a_real'], jogo['gols_b_real']))
-            jogo['vencedores_placar'] = list(set([g[0] for g in cur.fetchall()]))
-    cur.close(); conn.close()
-    return render_template('index.html', usuario=session['usuario'], jogos=jogos, gasto=f"{gasto:,.2f}".replace('.', ','))
+    <div id="form-apostas">
+        <input type="hidden" id="jogo_id">
+        
+        <div class="input-group">
+            <label>Gols (<span id="label-time-a">A</span>):</label>
+            <input type="number" class="bet-input" id="gols_a" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Gols (<span id="label-time-b">B</span>):</label>
+            <input type="number" class="bet-input" id="gols_b" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Escanteios Totais:</label>
+            <input type="number" class="bet-input" id="escanteios" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Cartões Amarelos Totais:</label>
+            <input type="number" class="bet-input" id="amarelos" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Cartões Vermelhos Totais:</label>
+            <input type="number" class="bet-input" id="vermelhos" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Substituições Totais:</label>
+            <input type="number" class="bet-input" id="subs" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Tempo de Acréscimo (Minutos):</label>
+            <input type="number" class="bet-input" id="acrescimo" min="0" max="90" oninput="calcularTotal()">
+        </div>
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if 'usuario' in session: return redirect(url_for('index'))
-    erro = None
-    if request.method == 'POST':
-        user = request.form.get('usuario')
-        pwd = request.form.get('senha')
-        if user in USUARIOS_PERMITIDOS and USUARIOS_PERMITIDOS[user] == pwd:
-            session['usuario'] = user
-            return redirect(url_for('index'))
-        else:
-            erro = "Usuário ou senha incorretos."
-    return render_template('login.html', erro=erro)
+        <button id="btn-confirmar" onclick="enviarAposta()" disabled>Selecione um palpite...</button>
+        <div id="msg-retorno"></div>
+    </div>
+</div>
 
-@app.route('/apostar', methods=['POST'])
-def apostar():
-    dados = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], dados['jogo_id']))
-    if cur.fetchone(): cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Aposta já enviada!"}), 400
-    cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                (session['usuario'], dados['jogo_id'], dados['gols_a'], dados['gols_b'], dados['escanteios'], dados['amarelos'], dados['vermelhos'], dados['subs'], dados['acrescimo']))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({"sucesso": True})
+<script>
+    function abrirModal(id, timeA, timeB, status) {
+        if (status === 'RESULTADOS') {
+            alert('Este jogo já foi encerrado. Não é possível apostar.');
+            return;
+        }
+        
+        document.querySelectorAll('.bet-input').forEach(input => input.value = '');
+        document.getElementById('msg-retorno').style.display = 'none';
+        document.getElementById('msg-retorno').className = '';
+        document.getElementById('btn-confirmar').style.display = 'block';
+        calcularTotal(); 
 
-@app.route('/apostas_publicas')
-def apostas_publicas():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute('SELECT usuario, jogo_id, gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo FROM palpites ORDER BY id DESC')
-    palpites = [{'usuario': r[0], 'jogo_id': r[1], 'gols_a': r[2], 'gols_b': r[3], 'escanteios': r[4], 'amarelos': r[5], 'vermelhos': r[6], 'subs': r[7], 'acrescimo': r[8]} for r in cur.fetchall()]
-    cur.close(); conn.close()
-    return render_template('apostas.html', palpites=palpites)
+        document.getElementById('jogo_id').value = id;
+        document.getElementById('modal-titulo').innerText = `${timeA} vs ${timeB}`;
+        document.getElementById('label-time-a').innerText = timeA;
+        document.getElementById('label-time-b').innerText = timeB;
 
-if __name__ == '__main__': app.run()
+        document.getElementById('modal-aposta').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function fecharModal() {
+        document.getElementById('modal-aposta').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function calcularTotal() {
+        let count = 0;
+        
+        const golsA = document.getElementById('gols_a').value;
+        const golsB = document.getElementById('gols_b').value;
+        if (golsA !== '' || golsB !== '') count++;
+
+        const outrosCampos = ['escanteios', 'amarelos', 'vermelhos', 'subs', 'acrescimo'];
+        outrosCampos.forEach(id => {
+            if (document.getElementById(id).value !== '') count++;
+        });
+
+        const btn = document.getElementById('btn-confirmar');
+        if (count > 0) {
+            const total = (count * 0.50).toFixed(2).replace('.', ',');
+            btn.innerText = `Confirmar ${count} aposta(s) - Total: R$ ${total}`;
+            btn.disabled = false;
+        } else {
+            btn.innerText = `Selecione pelo menos um palpite`;
+            btn.disabled = true;
+        }
+    }
+
+    function enviarAposta() {
+        const btn = document.getElementById('btn-confirmar');
+        btn.innerText = "Processando...";
+        btn.disabled = true;
+
+        const dados = {
+            jogo_id: document.getElementById('jogo_id').value,
+            gols_a: document.getElementById('gols_a').value,
+            gols_b: document.getElementById('gols_b').value,
+            escanteios: document.getElementById('escanteios').value,
+            amarelos: document.getElementById('amarelos').value,
+            vermelhos: document.getElementById('vermelhos').value,
+            subs: document.getElementById('subs').value,
+            acrescimo: document.getElementById('acrescimo').value
+        };
+
+        fetch('/apostar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        })
+        .then(response => response.json())
+        .then(data => {
+            const msgBox = document.getElementById('msg-retorno');
+            btn.style.display = 'none';
+            msgBox.style.display = 'block';
+
+            if (data.sucesso) {
+                msgBox.className = 'msg-sucesso';
+                msgBox.innerText = '✅ Aposta confirmada com sucesso! Atualizando...';
+                setTimeout(() => { window.location.reload(); }, 2000);
+            } else {
+                msgBox.className = 'msg-erro';
+                msgBox.innerText = '❌ ' + data.erro;
+                setTimeout(() => { fecharModal(); }, 3500);
+            }
+        })
+        .catch(error => {
+            alert("Erro na conexão com o servidor.");
+            fecharModal();
+        });
+    }
+</script>
+
+</body>
+</html>

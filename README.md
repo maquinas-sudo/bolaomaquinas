@@ -1,1 +1,43 @@
-# bolaomaquinas
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | Bolão Máquinas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; padding: 0;
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("{{ url_for('static', filename='fundo.jpg') }}");
+            background-size: cover;
+            font-family: 'Montserrat', sans-serif;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+            color: white;
+        }
+        .login-box { 
+            background: rgba(20, 20, 20, 0.9); padding: 40px; border-radius: 15px; 
+            border: 1px solid #00ff00; text-align: center; width: 300px;
+        }
+        input { 
+            display: block; width: 100%; margin: 15px 0; padding: 12px; 
+            background: #333; border: none; color: white; border-radius: 5px; box-sizing: border-box;
+        }
+        button { 
+            background: #00ff00; color: #000; font-weight: bold; padding: 12px; 
+            border: none; border-radius: 5px; width: 100%; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        {% if erro %}
+    <p style="color: red; font-weight: bold; font-size: 0.9em; background: rgba(255,0,0,0.2); padding: 10px; border-radius: 5px;">{{ erro }}</p>
+{% endif %}
+        <h2>BOLÃO MÁQUINAS</h2>
+        <form method="POST">
+            <input type="text" name="usuario" placeholder="Usuário" required>
+            <input type="password" name="senha" placeholder="Senha" required>
+            <button type="submit">ENTRAR</button>
+        </form>
+    </div>
+</body>
+</html>
