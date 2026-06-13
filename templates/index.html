@@ -2,32 +2,34 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Arena | Bolão Máquinas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena | Bolão</title>
     <style>
-        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .hodometro { background: #333; padding: 10px 15px; border-radius: 5px; border: 1px solid #ffcc00; font-weight: bold; color: #ffcc00; }
-        .btn-publico { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .jogo-row { background: #2a2a2a; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; cursor: pointer; border: 1px solid #333; }
-        .placar-box { font-size: 1.5em; color: #fff; font-weight: bold; background: #111; padding: 5px 15px; border-radius: 5px; margin-left: 15px; }
-        .trofeu-rei { color: #00ff00; font-size: 0.8em; margin-top: 5px; background: rgba(0,255,0,0.1); display: inline-block; padding: 3px 8px; border-radius: 3px; border: 1px solid #00ff00; }
+        body { background: #121212; color: #e0e0e0; font-family: sans-serif; margin: 0; padding: 0; }
+        header { background: #1e1e1e; padding: 20px; border-bottom: 2px solid #ffcc00; display: flex; justify-content: space-between; align-items: center; }
+        .container { padding: 20px; max-width: 800px; margin: auto; }
+        .match-card { background: #1e1e1e; border-left: 5px solid #ffcc00; padding: 15px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+        .match-card:hover { background: #2a2a2a; }
+        .odds { font-size: 1.4em; font-weight: bold; color: #ffcc00; }
+        .btn-link { background: #007bff; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
-<div class="header">
-    <h2>⚽ Arena | Jogador: {{ usuario }}</h2>
-    <div class="hodometro">Suas Apostas: R$ {{ gasto }}</div>
-    <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">ACOMPANHE AS APOSTAS</a>
-</div>
-{% for jogo in jogos %}
-<div class="jogo-row" onclick="window.location.href='/apostas_publicas'">
-    <div>
-        <div style="font-size: 1.2em;"><b>{{ jogo.time_a }}</b> vs <b>{{ jogo.time_b }}</b></div>
-        <div class="{% if jogo.status == 'AO VIVO' %}status-ao-vivo{% endif %}">{{ jogo.status }}</div>
-        {% if jogo.vencedores_placar %}<div class="trofeu-rei">🏆 Vencedores: {{ jogo.vencedores_placar|join(', ') }}</div>{% endif %}
+    <header>
+        <h2>Arena Bolão</h2>
+        <a href="/apostas_publicas" class="btn-link">VER APOSTAS</a>
+    </header>
+    <div class="container">
+        <h3>Jogos Disponíveis</h3>
+        {% for jogo in jogos %}
+        <div class="match-card" onclick="window.location.href='/apostas_publicas'">
+            <div>
+                <div style="font-size: 1.1em; font-weight: bold;">{{ jogo.time_a }} vs {{ jogo.time_b }}</div>
+                <small style="color: #888;">{{ jogo.status }}</small>
+            </div>
+            <div class="odds">{{ jogo.placar }}</div>
+        </div>
+        {% endfor %}
     </div>
-    <div class="placar-box">{{ jogo.placar }}</div>
-</div>
-{% endfor %}
 </body>
 </html>
