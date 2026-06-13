@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, session, redirect, url_for, j
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_super_segura'
 
-# 1. Dicionário de usuários restritos (Login fornecido por você)
+# 1. Usuários e Senhas Restritos (Fornecidos por você)
 USUARIOS_PERMITIDOS = {
     "Joao mano": "JMOV123",
     "Lucas": "LCS123",
@@ -17,14 +17,14 @@ USUARIOS_PERMITIDOS = {
     "Sauer": "admin123"
 }
 
-# 2. Simulação de Jogos Reais (Depois isso virá da API)
+# 2. Jogos (Simulados por enquanto)
 JOGOS_ATUAIS = [
     {"id": 1, "time_a": "Brasil", "time_b": "França", "placar": "1 x 1", "status": "AO VIVO"},
     {"id": 2, "time_a": "Argentina", "time_b": "Croácia", "placar": "2 x 0", "status": "RESULTADOS"},
     {"id": 3, "time_a": "Inglaterra", "time_b": "Espanha", "placar": "- x -", "status": "EM BREVE"}
 ]
 
-# Banco de dados em memória para os palpites (temporário até ligarmos o Neon)
+# 3. Memória temporária para os palpites
 palpites_salvos = []
 
 @app.route('/')
@@ -40,7 +40,6 @@ def login():
         usuario = request.form['usuario']
         senha = request.form['senha']
         
-        # Verificação restrita
         if usuario in USUARIOS_PERMITIDOS and USUARIOS_PERMITIDOS[usuario] == senha:
             session['usuario'] = usuario
             return redirect(url_for('index'))
@@ -55,7 +54,6 @@ def apostar():
         return jsonify({"erro": "Não autorizado"}), 401
     
     dados = request.json
-    # Salva o palpite publicamente
     dados['usuario'] = session['usuario']
     palpites_salvos.append(dados)
     
