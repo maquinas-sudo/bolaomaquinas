@@ -2,30 +2,32 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apostas Públicas</title>
     <style>
-        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; padding: 20px; }
-        .btn-filtro { background: #333; color: white; border: none; padding: 10px; margin: 5px; border-radius: 5px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; background: #222; }
-        th, td { padding: 12px; border: 1px solid #333; text-align: center; }
+        body { background: #121212; color: #e0e0e0; font-family: sans-serif; padding: 20px; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-filter { background: #333; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; }
+        th { background: #2a2a2a; padding: 15px; border-bottom: 2px solid #ffcc00; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #333; }
     </style>
 </head>
 <body>
-<h2>📊 Painel de Apostas</h2>
-<a href="/">⬅ Voltar</a>
-<div id="filtros"></div>
-<table id="tabela-apostas">
-    <thead><tr><th>Usuário</th><th>Jogo</th><th>Gols</th><th>Estatísticas</th></tr></thead>
-    <tbody>
-        {% for p in palpites %}
-        <tr class="linha-aposta" data-id="{{ p.jogo_id }}">
-            <td>{{ p.usuario }}</td>
-            <td>Jogo #{{ p.jogo_id }}</td>
-            <td>{{ p.gols_a }} x {{ p.gols_b }}</td>
-            <td>E:{{ p.escanteios }} A:{{ p.amarelos }} V:{{ p.vermelhos }} S:{{ p.subs }} Ac:{{ p.acrescimo }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <a href="/" style="color: #ffcc00;">⬅ Voltar</a>
+    <h2>Painel de Apostas</h2>
+    <table>
+        <thead><tr><th>Usuário</th><th>Jogo</th><th>Palpite</th><th>Stats</th></tr></thead>
+        <tbody>
+            {% for p in palpites %}
+            <tr>
+                <td>{{ p.usuario }}</td>
+                <td>ID: {{ p.jogo_id }}</td>
+                <td style="font-weight: bold; color: #ffcc00;">{{ p.gols_a }} x {{ p.gols_b }}</td>
+                <td>E:{{ p.escanteios }} A:{{ p.amarelos }} V:{{ p.vermelhos }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 </html>
