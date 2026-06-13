@@ -3,7 +3,7 @@ import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_super_segura'
@@ -29,53 +29,57 @@ cache_jogos = {
 }
 
 def obter_jogos_copa():
-    agora = datetime.now()
+    agora = datetime.now(timezone.utc)
     
     minutos_espera = 4 if cache_jogos["tem_jogo_ao_vivo"] else 60
     
     if cache_jogos["ultima_atualizacao"] and (agora - cache_jogos["ultima_atualizacao"]) < timedelta(minutes=minutos_espera):
         return cache_jogos["dados"]
         
-    url = "https://v3.football.api-sports.io/fixtures"
-    querystring = {"league": "1", "season": "2026"}
-    
-    headers = {
-        'x-apisports-key': os.environ.get('API_KEY'),
-        'x-apisports-host': 'v3.football.api-sports.io'
-    }
+    # Endpoint e cabeçalho ajustados para a nova API (football-data.org)
+    url = "https://api.football-data.org/v4/competitions/WC/matches"
+    headers = { 'X-Auth-Token': os.environ.get('API_KEY') }
 
     try:
-        response = requests.get(url, headers=headers, params=querystring)
+        response = requests.get(url, headers=headers)
         dados_api = response.json()
         
         # Injeção de diagnóstico
-        if 'errors' in dados_api and dados_api['errors']:
-            print("🚨 ERRO NA API:", dados_api['errors'])
+        if 'errorCode' in dados_api or 'message' in dados_api:
+            print("🚨 ERRO NA API:", dados_api.get('message', 'Erro desconhecido'))
             return cache_jogos["dados"]
             
         jogos_reais = []
         tem_ao_vivo_agora = False
         
-        for fixture in dados_api.get('response', []):
-            time_a = fixture['teams']['home']['name']
-            time_b = fixture['teams']['away']['name']
-            gols_a = fixture['goals']['home']
-            gols_b = fixture['goals']['away']
-            status_api = fixture['fixture']['status']['short']
-            timestamp = fixture['fixture']['timestamp']
+        for match in dados_api.get('matches', []):
+            # Tenta pegar o nome curto, se não tiver, pega o longo, se não, "A Definir"
+            time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
+            time_b = match.get('awayTeam', {}).get('shortName') or match.get('awayTeam', {}).get('name') or "A Definir"
+            
+            # Pega os gols no tempo normal (fullTime)
+            gols_a = match.get('score', {}).get('fullTime', {}).get('home')
+            gols_b = match.get('score', {}).get('fullTime', {}).get('away')
+            
+            status_api = match.get('status')
             
             placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}"
             
-            if status_api in ['1H', 'HT', '2H', 'ET', 'P', 'LIVE']:
+            # Ajuste dos status para a nova API
+            if status_api in ['IN_PLAY', 'PAUSED']:
                 status = "AO VIVO"
                 tem_ao_vivo_agora = True
-            elif status_api in ['FT', 'AET', 'PEN']:
+            elif status_api in ['FINISHED', 'AWARDED']:
                 status = "RESULTADOS"
             else:
                 status = "EM BREVE"
                 
+            # Converte a data da API para timestamp de comparação
+            dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            timestamp = dt_obj.timestamp()
+                
             jogos_reais.append({
-                "id": fixture['fixture']['id'],
+                "id": match['id'],
                 "time_a": time_a,
                 "time_b": time_b,
                 "placar": placar,
@@ -90,7 +94,7 @@ def obter_jogos_copa():
         # Filtra os jogos de ontem pra frente
         jogos_futuros = [j for j in jogos_reais if j['timestamp'] > (agora_ts - 86400)]
         
-        # Se não tiver jogo recente (filtro vazio), exibe os últimos/próximos da lista
+        # Se não tiver jogo recente, exibe os últimos/próximos da lista
         if len(jogos_futuros) == 0 and len(jogos_reais) > 0:
             jogos_futuros = jogos_reais
             
