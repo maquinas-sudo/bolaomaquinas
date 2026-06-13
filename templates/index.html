@@ -4,33 +4,176 @@
     <meta charset="UTF-8">
     <title>Arena | Bolão Máquinas</title>
     <style>
-        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; display: flex; }
-        .main-content { flex: 3; padding: 20px; }
-        .sidebar { flex: 1; background: #222; padding: 20px; border-left: 2px solid #333; height: 100vh; }
-        .jogo-row { background: #2a2a2a; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
-        .odd-box { background: #333; padding: 10px 20px; border-radius: 4px; color: #ffcc00; font-weight: bold; cursor: pointer; }
-        h2, h3 { color: #fff; }
+        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h2 { color: #fff; margin: 0; }
+        .btn-publico { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        
+        /* Cores de Status */
+        .status-ao-vivo { color: red; font-weight: bold; }
+        .status-resultados { color: yellow; font-weight: bold; }
+        .status-em-breve { color: white; font-weight: bold; }
+        
+        .jogo-row { background: #2a2a2a; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; cursor: pointer; border: 1px solid #333; }
+        .jogo-row:hover { border-color: #ffcc00; }
+        .placar-box { font-size: 1.5em; color: #fff; font-weight: bold; background: #111; padding: 5px 15px; border-radius: 5px; }
+
+        /* Modal do Carrinho de Apostas */
+        #modal-aposta { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 30px; border-radius: 10px; border: 2px solid #ffcc00; width: 400px; z-index: 1000; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        
+        .input-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .input-group input { width: 60px; padding: 5px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; text-align: center; }
+        
+        #btn-confirmar { width: 100%; padding: 15px; background: #ffcc00; color: #000; border: none; font-weight: bold; font-size: 1.1em; border-radius: 5px; cursor: pointer; margin-top: 15px; }
+        #msg-sucesso { display: none; background: #00ff00; color: #000; padding: 15px; text-align: center; font-weight: bold; border-radius: 5px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
-<div class="main-content">
-    <h2>⚽ Jogos da Copa</h2>
-    <div class="jogo-row">
-        <div><b>Brasil</b> vs <b>França</b></div>
-        <div style="display: flex; gap: 10px;">
-            <div class="odd-box">1.85</div>
-            <div class="odd-box">3.20</div>
-            <div class="odd-box">4.50</div>
+<div class="header">
+    <h2>⚽ Arena de Jogos | Logado como: {{ usuario }}</h2>
+    <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">ACOMPANHE AS APOSTAS</a>
+</div>
+
+<!-- Lista de Jogos -->
+{% for jogo in jogos %}
+<div class="jogo-row" onclick="abrirModal({{ jogo.id }}, '{{ jogo.time_a }}', '{{ jogo.time_b }}', '{{ jogo.status }}')">
+    <div>
+        <div style="font-size: 1.2em;"><b>{{ jogo.time_a }}</b> vs <b>{{ jogo.time_b }}</b></div>
+        <div class="
+            {% if jogo.status == 'AO VIVO' %}status-ao-vivo
+            {% elif jogo.status == 'RESULTADOS' %}status-resultados
+            {% else %}status-em-breve{% endif %}
+        ">
+            {{ jogo.status }}
         </div>
+    </div>
+    <div class="placar-box">{{ jogo.placar }}</div>
+</div>
+{% endfor %}
+
+<!-- Fundo Escuro do Modal -->
+<div class="overlay" id="overlay" onclick="fecharModal()"></div>
+
+<!-- Modal de Aposta -->
+<div id="modal-aposta">
+    <h3 style="color: white; margin-top: 0;" id="modal-titulo">Jogo</h3>
+    <p style="color: #aaa; font-size: 0.9em;">Preencha entre 0 e 90. Custo: R$ 0,50 por palpite.</p>
+    
+    <div id="form-apostas">
+        <input type="hidden" id="jogo_id">
+        
+        <div class="input-group">
+            <label>Gols (<span id="label-time-a">A</span>):</label>
+            <input type="number" class="bet-input" id="gols_a" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Gols (<span id="label-time-b">B</span>):</label>
+            <input type="number" class="bet-input" id="gols_b" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Escanteios Totais:</label>
+            <input type="number" class="bet-input" id="escanteios" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Cartões Amarelos Totais:</label>
+            <input type="number" class="bet-input" id="amarelos" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Cartões Vermelhos Totais:</label>
+            <input type="number" class="bet-input" id="vermelhos" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Substituições Totais:</label>
+            <input type="number" class="bet-input" id="subs" min="0" max="90" oninput="calcularTotal()">
+        </div>
+        <div class="input-group">
+            <label>Tempo de Acréscimo (Minutos):</label>
+            <input type="number" class="bet-input" id="acrescimo" min="0" max="90" oninput="calcularTotal()">
+        </div>
+
+        <button id="btn-confirmar" onclick="enviarAposta()">Selecione um palpite...</button>
+        <div id="msg-sucesso">✅ Aposta confirmada com sucesso! Voltando ao painel...</div>
     </div>
 </div>
 
-<div class="sidebar">
-    <h3>MINHAS APOSTAS</h3>
-    <p>Olá, {{ usuario }}!</p>
-    <div style="background: #333; padding: 15px; border-radius: 5px;">Saldo: R$ 50,00</div>
-</div>
+<script>
+    function abrirModal(id, timeA, timeB, status) {
+        if (status === 'RESULTADOS') {
+            alert('Este jogo já foi encerrado. Não é possível apostar.');
+            return;
+        }
+        
+        // Reseta os campos
+        document.querySelectorAll('.bet-input').forEach(input => input.value = '');
+        document.getElementById('msg-sucesso').style.display = 'none';
+        document.getElementById('btn-confirmar').style.display = 'block';
+        calcularTotal(); // Reseta o botão
+
+        // Preenche os dados
+        document.getElementById('jogo_id').value = id;
+        document.getElementById('modal-titulo').innerText = `${timeA} vs ${timeB}`;
+        document.getElementById('label-time-a').innerText = timeA;
+        document.getElementById('label-time-b').innerText = timeB;
+
+        // Mostra o modal
+        document.getElementById('modal-aposta').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function fecharModal() {
+        document.getElementById('modal-aposta').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function calcularTotal() {
+        let count = 0;
+        document.querySelectorAll('.bet-input').forEach(input => {
+            if (input.value !== '') count++;
+        });
+
+        const btn = document.getElementById('btn-confirmar');
+        if (count > 0) {
+            const total = (count * 0.50).toFixed(2).replace('.', ',');
+            btn.innerText = `Confirmar ${count} aposta(s) - Total: R$ ${total}`;
+            btn.disabled = false;
+        } else {
+            btn.innerText = `Selecione pelo menos um palpite`;
+            btn.disabled = true;
+        }
+    }
+
+    function enviarAposta() {
+        const dados = {
+            jogo_id: document.getElementById('jogo_id').value,
+            gols_a: document.getElementById('gols_a').value,
+            gols_b: document.getElementById('gols_b').value,
+            escanteios: document.getElementById('escanteios').value,
+            amarelos: document.getElementById('amarelos').value,
+            vermelhos: document.getElementById('vermelhos').value,
+            subs: document.getElementById('subs').value,
+            acrescimo: document.getElementById('acrescimo').value
+        };
+
+        fetch('/apostar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        }).then(response => {
+            if (response.ok) {
+                // Esconde botão e mostra mensagem
+                document.getElementById('btn-confirmar').style.display = 'none';
+                document.getElementById('msg-sucesso').style.display = 'block';
+                
+                // Redireciona após 3 segundos
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+        });
+    }
+</script>
 
 </body>
 </html>
