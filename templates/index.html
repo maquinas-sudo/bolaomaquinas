@@ -35,17 +35,25 @@
     <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">ACOMPANHE AS APOSTAS</a>
 </div>
 
-{% for jogo in jogos %}
-<div class="jogo-row" onclick="abrirModal({{ jogo.id }}, '{{ jogo.time_a }}', '{{ jogo.time_b }}', '{{ jogo.status }}')">
-    <div>
-        <div style="font-size: 1.2em;"><b>{{ jogo.time_a }}</b> vs <b>{{ jogo.time_b }}</b></div>
-        <div class="{% if jogo.status == 'AO VIVO' %}status-ao-vivo{% elif jogo.status == 'RESULTADOS' %}status-resultados{% else %}status-em-breve{% endif %}">
-            {{ jogo.status }}
-        </div>
+<!-- Lista de Jogos -->
+{% if jogos|length == 0 %}
+    <div style="text-align: center; margin-top: 50px; background: #222; padding: 30px; border-radius: 10px; border: 1px solid #555;">
+        <h3 style="color: #ffcc00; margin-top: 0;">⏳ Aguardando os próximos jogos...</h3>
+        <p>A API está processando os confrontos da Copa do Mundo ou não há partidas programadas para as próximas horas.</p>
     </div>
-    <div class="placar-box">{{ jogo.placar }}</div>
-</div>
-{% endfor %}
+{% else %}
+    {% for jogo in jogos %}
+    <div class="jogo-row" onclick="abrirModal({{ jogo.id }}, '{{ jogo.time_a }}', '{{ jogo.time_b }}', '{{ jogo.status }}')">
+        <div>
+            <div style="font-size: 1.2em;"><b>{{ jogo.time_a }}</b> vs <b>{{ jogo.time_b }}</b></div>
+            <div class="{% if jogo.status == 'AO VIVO' %}status-ao-vivo{% elif jogo.status == 'RESULTADOS' %}status-resultados{% else %}status-em-breve{% endif %}">
+                {{ jogo.status }}
+            </div>
+        </div>
+        <div class="placar-box">{{ jogo.placar }}</div>
+    </div>
+    {% endfor %}
+{% endif %}
 
 <div class="overlay" id="overlay" onclick="fecharModal()"></div>
 
@@ -119,7 +127,6 @@
     function calcularTotal() {
         let count = 0;
         
-        // Placar conta como 1 aposta
         const golsA = document.getElementById('gols_a').value;
         const golsB = document.getElementById('gols_b').value;
         if (golsA !== '' || golsB !== '') {
