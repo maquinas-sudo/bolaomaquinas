@@ -5,33 +5,62 @@
     <title>Apostas Públicas | Bolão Máquinas</title>
     <style>
         body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; padding: 20px; }
-        h2 { color: #fff; }
-        .cartao-aposta { background: #222; border-left: 4px solid #ffcc00; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
-        .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-bottom: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h2 { color: #fff; margin: 0; }
+        .btn-voltar { background: #555; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #222; border-radius: 8px; overflow: hidden; min-width: 700px; }
+        th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #333; }
+        th { background-color: #ffcc00; color: #000; font-weight: bold; }
+        tr:hover { background-color: #2a2a2a; }
+        .user-highlight { font-weight: bold; color: #fff; }
+        .placar { font-size: 1.1em; background: #111; padding: 4px 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-<a href="{{ url_for('index') }}" class="btn-voltar">⬅ Voltar para a Arena</a>
-
-<h2>📢 Painel Público de Apostas</h2>
+<div class="header">
+    <h2>📊 Painel de Apostas Públicas</h2>
+    <a href="{{ url_for('index') }}" class="btn-voltar">⬅ VOLTAR PARA A ARENA</a>
+</div>
 
 {% if palpites|length == 0 %}
-    <p>Ninguém fez apostas ainda. Seja o primeiro!</p>
-{% else %}
-    {% for p in palpites|reverse %}
-    <div class="cartao-aposta">
-        <strong style="color: #ffcc00; font-size: 1.2em;">{{ p.usuario }}</strong> apostou no Jogo #{{ p.jogo_id }}:
-        <ul style="margin-top: 10px; color: #fff;">
-            {% if p.gols_a != '' or p.gols_b != '' %}<li>Placar: {{ p.gols_a }} x {{ p.gols_b }}</li>{% endif %}
-            {% if p.escanteios != '' %}<li>Escanteios: {{ p.escanteios }}</li>{% endif %}
-            {% if p.amarelos != '' %}<li>C. Amarelos: {{ p.amarelos }}</li>{% endif %}
-            {% if p.vermelhos != '' %}<li>C. Vermelhos: {{ p.vermelhos }}</li>{% endif %}
-            {% if p.subs != '' %}<li>Substituições: {{ p.subs }}</li>{% endif %}
-            {% if p.acrescimo != '' %}<li>Acréscimos: {{ p.acrescimo }} min</li>{% endif %}
-        </ul>
+    <div style="text-align: center; padding: 50px; background: #222; border-radius: 10px; border: 1px solid #333;">
+        <h3 style="color: #ffcc00;">Nenhuma aposta registrada ainda.</h3>
+        <p>A pista está vazia. Volte lá e seja o primeiro a dar o palpite!</p>
     </div>
-    {% endfor %}
+{% else %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>ID do Jogo</th>
+                    <th>Placar (A x B)</th>
+                    <th>Escanteios</th>
+                    <th>Amarelos</th>
+                    <th>Vermelhos</th>
+                    <th>Subs</th>
+                    <th>Acréscimos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in palpites %}
+                <tr>
+                    <td class="user-highlight">{{ p.usuario }}</td>
+                    <td style="color: #888;">#{{ p.jogo_id }}</td>
+                    <td><span class="placar">{{ p.gols_a|default('-', true) }} x {{ p.gols_b|default('-', true) }}</span></td>
+                    <td>{{ p.escanteios|default('-', true) }}</td>
+                    <td>{{ p.amarelos|default('-', true) }}</td>
+                    <td>{{ p.vermelhos|default('-', true) }}</td>
+                    <td>{{ p.subs|default('-', true) }}</td>
+                    <td>{{ p.acrescimo|default('-', true) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 {% endif %}
 
 </body>
