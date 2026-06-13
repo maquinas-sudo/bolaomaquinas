@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Arena | Bolão Máquinas</title>
+    <style>
+        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; display: flex; }
+        .main-content { flex: 3; padding: 20px; }
+        .sidebar { flex: 1; background: #222; padding: 20px; border-left: 2px solid #333; height: 100vh; }
+        .jogo-row { background: #2a2a2a; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
+        .odd-box { background: #333; padding: 10px 20px; border-radius: 4px; color: #ffcc00; font-weight: bold; cursor: pointer; }
+        h2, h3 { color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="main-content">
+    <h2>⚽ Jogos da Copa</h2>
+    <div class="jogo-row">
+        <div><b>Brasil</b> vs <b>França</b></div>
+        <div style="display: flex; gap: 10px;">
+            <div class="odd-box">1.85</div>
+            <div class="odd-box">3.20</div>
+            <div class="odd-box">4.50</div>
+        </div>
+    </div>
+</div>
+
+<div class="sidebar">
+    <h3>MINHAS APOSTAS</h3>
+    <p>Olá, {{ usuario }}!</p>
+    <div style="background: #333; padding: 15px; border-radius: 5px;">Saldo: R$ 50,00</div>
+</div>
+
+</body>
+</html>
