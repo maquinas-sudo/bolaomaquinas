@@ -1,7 +1,9 @@
 import os
+import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_super_segura'
@@ -19,20 +21,89 @@ USUARIOS_PERMITIDOS = {
     "Sauer": "admin123"
 }
 
-# 2. Jogos (Simulados por enquanto)
-JOGOS_ATUAIS = [
-    {"id": 1, "time_a": "Brasil", "time_b": "França", "placar": "1 x 1", "status": "AO VIVO"},
-    {"id": 2, "time_a": "Argentina", "time_b": "Croácia", "placar": "2 x 0", "status": "RESULTADOS"},
-    {"id": 3, "time_a": "Inglaterra", "time_b": "Espanha", "placar": "- x -", "status": "EM BREVE"}
-]
+# --- SISTEMA DE CACHE DINÂMICO (O "Mapa de Injeção") ---
+cache_jogos = {
+    "dados": [],
+    "ultima_atualizacao": None,
+    "tem_jogo_ao_vivo": False  # Sensor para saber se o motor está acelerado
+}
 
-# Função para conectar ao Banco de Dados Neon
+def obter_jogos_copa():
+    agora = datetime.now()
+    
+    # Se tem jogo rolando, atualiza a cada 4 minutos (preserva as 100 requisições). 
+    # Se não tem, entra em marcha lenta (60 minutos).
+    minutos_espera = 4 if cache_jogos["tem_jogo_ao_vivo"] else 60
+    
+    if cache_jogos["ultima_atualizacao"] and (agora - cache_jogos["ultima_atualizacao"]) < timedelta(minutes=minutos_espera):
+        return cache_jogos["dados"]
+        
+    url = "https://v3.football.api-sports.io/fixtures"
+    querystring = {"league": "1", "season": "2026"}
+    
+    headers = {
+        'x-apisports-key': os.environ.get('API_KEY'),
+        'x-apisports-host': 'v3.football.api-sports.io'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, params=querystring)
+        dados_api = response.json()
+        
+        jogos_reais = []
+        tem_ao_vivo_agora = False
+        
+        for fixture in dados_api.get('response', []):
+            time_a = fixture['teams']['home']['name']
+            time_b = fixture['teams']['away']['name']
+            gols_a = fixture['goals']['home']
+            gols_b = fixture['goals']['away']
+            status_api = fixture['fixture']['status']['short']
+            timestamp = fixture['fixture']['timestamp']
+            
+            placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}"
+            
+            # Tradução e ativação do sensor de AO VIVO
+            if status_api in ['1H', 'HT', '2H', 'ET', 'P', 'LIVE']:
+                status = "AO VIVO"
+                tem_ao_vivo_agora = True
+            elif status_api in ['FT', 'AET', 'PEN']:
+                status = "RESULTADOS"
+            else:
+                status = "EM BREVE"
+                
+            jogos_reais.append({
+                "id": fixture['fixture']['id'],
+                "time_a": time_a,
+                "time_b": time_b,
+                "placar": placar,
+                "status": status,
+                "timestamp": timestamp
+            })
+            
+        jogos_reais.sort(key=lambda x: x['timestamp'])
+        
+        agora_ts = agora.timestamp()
+        um_dia_em_segundos = 86400
+        
+        # Filtra os jogos de ontem, hoje e amanhã
+        jogos_relevantes = [j for j in jogos_reais if j['timestamp'] > (agora_ts - um_dia_em_segundos)]
+        lista_final = jogos_relevantes[:10]
+        
+        # Salva na memória do servidor
+        cache_jogos["dados"] = lista_final
+        cache_jogos["ultima_atualizacao"] = agora
+        cache_jogos["tem_jogo_ao_vivo"] = tem_ao_vivo_agora
+        
+        return lista_final
+
+    except Exception as e:
+        print("Erro na API:", e)
+        return cache_jogos["dados"]
+
 def get_db_connection():
-    # Ele vai pegar a DATABASE_URL lá do Render
-    conn = psycopg2.connect(os.environ['DATABASE_URL'])
-    return conn
+    return psycopg2.connect(os.environ['DATABASE_URL'])
 
-# Cria a tabela automaticamente se ela não existir
 def criar_tabela():
     try:
         conn = get_db_connection()
@@ -57,14 +128,15 @@ def criar_tabela():
     except Exception as e:
         print("Erro ao criar tabela:", e)
 
-# Roda a criação da tabela assim que o app inicia
 criar_tabela()
 
 @app.route('/')
 def index():
     if 'usuario' not in session: 
         return redirect(url_for('login'))
-    return render_template('index.html', usuario=session['usuario'], jogos=JOGOS_ATUAIS)
+        
+    jogos_ao_vivo = obter_jogos_copa()
+    return render_template('index.html', usuario=session['usuario'], jogos=jogos_ao_vivo)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -88,7 +160,6 @@ def apostar():
     
     dados = request.json
     
-    # Salva o palpite permanentemente no Banco de Dados Neon
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('''
@@ -110,9 +181,8 @@ def apostas_publicas():
     if 'usuario' not in session: 
         return redirect(url_for('login'))
         
-    # Busca todas as apostas do Banco de Dados Neon
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor) # Retorna como Dicionário igual o Flask gosta
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute('SELECT * FROM palpites ORDER BY id DESC')
     palpites_salvos = cur.fetchall()
     cur.close()
