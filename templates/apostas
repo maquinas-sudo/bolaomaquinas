@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Apostas Públicas | Bolão Máquinas</title>
+    <style>
+        body { background-color: #1a1a1a; color: #ccc; font-family: sans-serif; margin: 0; padding: 20px; }
+        h2 { color: #fff; }
+        .cartao-aposta { background: #222; border-left: 4px solid #ffcc00; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
+        .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<a href="{{ url_for('index') }}" class="btn-voltar">⬅ Voltar para a Arena</a>
+
+<h2>📢 Painel Público de Apostas</h2>
+
+{% if palpites|length == 0 %}
+    <p>Ninguém fez apostas ainda. Seja o primeiro!</p>
+{% else %}
+    {% for p in palpites|reverse %}
+    <div class="cartao-aposta">
+        <strong style="color: #ffcc00; font-size: 1.2em;">{{ p.usuario }}</strong> apostou no Jogo #{{ p.jogo_id }}:
+        <ul style="margin-top: 10px; color: #fff;">
+            {% if p.gols_a != '' or p.gols_b != '' %}<li>Placar: {{ p.gols_a }} x {{ p.gols_b }}</li>{% endif %}
+            {% if p.escanteios != '' %}<li>Escanteios: {{ p.escanteios }}</li>{% endif %}
+            {% if p.amarelos != '' %}<li>C. Amarelos: {{ p.amarelos }}</li>{% endif %}
+            {% if p.vermelhos != '' %}<li>C. Vermelhos: {{ p.vermelhos }}</li>{% endif %}
+            {% if p.subs != '' %}<li>Substituições: {{ p.subs }}</li>{% endif %}
+            {% if p.acrescimo != '' %}<li>Acréscimos: {{ p.acrescimo }} min</li>{% endif %}
+        </ul>
+    </div>
+    {% endfor %}
+{% endif %}
+
+</body>
+</html>
