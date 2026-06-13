@@ -29,6 +29,9 @@
 </head>
 <body>
     <div class="login-box">
+        {% if erro %}
+    <p style="color: red; font-weight: bold; font-size: 0.9em; background: rgba(255,0,0,0.2); padding: 10px; border-radius: 5px;">{{ erro }}</p>
+{% endif %}
         <h2>BOLÃO MÁQUINAS</h2>
         <form method="POST">
             <input type="text" name="usuario" placeholder="Usuário" required>
