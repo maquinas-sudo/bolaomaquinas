@@ -1,7 +1,6 @@
 import os
 import requests
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from datetime import datetime, timedelta, timezone
 
@@ -19,45 +18,32 @@ cache_jogos = {"dados": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": Fals
 def obter_jogos_copa():
     agora = datetime.now(timezone.utc)
     minutos_espera = 4 if cache_jogos["tem_jogo_ao_vivo"] else 60
-    
     if cache_jogos["ultima_atualizacao"] and (agora - cache_jogos["ultima_atualizacao"]) < timedelta(minutes=minutos_espera):
         return cache_jogos["dados"]
-        
     url = "https://api.football-data.org/v4/competitions/WC/matches"
     headers = { 'X-Auth-Token': os.environ.get('API_KEY') }
-
     try:
         response = requests.get(url, headers=headers)
         dados_api = response.json()
-        
         if 'matches' not in dados_api: return cache_jogos["dados"]
-            
         jogos_reais = []
         tem_ao_vivo_agora = False
-        
         for match in dados_api.get('matches', []):
             time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
             time_b = match.get('awayTeam', {}).get('shortName') or match.get('awayTeam', {}).get('name') or "A Definir"
-            
             gols_a = match.get('score', {}).get('fullTime', {}).get('home')
             gols_b = match.get('score', {}).get('fullTime', {}).get('away')
-            
             status_api = match.get('status')
             placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}"
-            
             status = "AO VIVO" if status_api in ['IN_PLAY', 'PAUSED'] else ("RESULTADOS" if status_api in ['FINISHED', 'AWARDED'] else "EM BREVE")
             if status == "AO VIVO": tem_ao_vivo_agora = True
-                
             dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            
             jogos_reais.append({
-                "id": match['id'],
-                "time_a": time_a, "time_b": time_b, "placar": placar,
+                "id": match['id'], "time_a": time_a, "time_b": time_b, "placar": placar,
                 "status": status, "timestamp": dt_obj.timestamp(),
                 "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
                 "gols_b_real": str(gols_b) if gols_b is not None else "N/A"
             })
-            
         jogos_reais.sort(key=lambda x: x['timestamp'])
         cache_jogos.update({"dados": jogos_reais[:10], "ultima_atualizacao": agora, "tem_jogo_ao_vivo": tem_ao_vivo_agora})
         return cache_jogos["dados"]
@@ -65,26 +51,48 @@ def obter_jogos_copa():
 
 def get_db_connection(): return psycopg2.connect(os.environ['DATABASE_URL'])
 
+def criar_tabela():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS palpites (
+                id SERIAL PRIMARY KEY,
+                usuario VARCHAR(50),
+                jogo_id INT,
+                gols_a VARCHAR(10),
+                gols_b VARCHAR(10),
+                escanteios VARCHAR(10),
+                amarelos VARCHAR(10),
+                vermelhos VARCHAR(10),
+                subs VARCHAR(10),
+                acrescimo VARCHAR(10)
+            )
+        ''')
+        for col in ['escanteios', 'amarelos', 'vermelhos', 'subs', 'acrescimo']:
+            try:
+                cur.execute(f'ALTER TABLE palpites ADD COLUMN {col} VARCHAR(10)')
+            except: conn.rollback()
+        conn.commit(); cur.close(); conn.close()
+    except Exception as e: print("Erro na tabela:", e)
+
+criar_tabela()
+
 @app.route('/')
 def index():
     if 'usuario' not in session: return redirect(url_for('login'))
-    usuario_atual = session['usuario']
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    
-    cur.execute("SELECT * FROM palpites WHERE usuario = %s", (usuario_atual,))
-    apostas_user = cur.fetchall()
-    gasto = sum([1 for p in apostas_user for field in [p['gols_a'], p['gols_b'], p['escanteios'], p['amarelos'], p['vermelhos'], p['subs'], p['acrescimo']] if field and field.strip()]) * 0.50
-    
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo FROM palpites WHERE usuario = %s", (session['usuario'],))
+    apostas = cur.fetchall()
+    gasto = sum([1 for p in apostas for f in p if f and f.strip()]) * 0.50
     jogos = obter_jogos_copa()
     for jogo in jogos:
         jogo['vencedores_placar'] = []
         if jogo['status'] == 'RESULTADOS' and jogo['gols_a_real'] != "N/A":
             cur.execute("SELECT usuario FROM palpites WHERE jogo_id = %s AND gols_a = %s AND gols_b = %s", (jogo['id'], jogo['gols_a_real'], jogo['gols_b_real']))
-            jogo['vencedores_placar'] = list(set([g['usuario'] for g in cur.fetchall()]))
-    
+            jogo['vencedores_placar'] = list(set([g[0] for g in cur.fetchall()]))
     cur.close(); conn.close()
-    return render_template('index.html', usuario=usuario_atual, jogos=jogos, gasto=f"{gasto:,.2f}".replace('.', ','))
+    return render_template('index.html', usuario=session['usuario'], jogos=jogos, gasto=f"{gasto:,.2f}".replace('.', ','))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -108,9 +116,10 @@ def apostar():
 @app.route('/apostas_publicas')
 def apostas_publicas():
     if 'usuario' not in session: return redirect(url_for('login'))
-    conn = get_db_connection(); cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute('SELECT * FROM palpites ORDER BY id DESC')
-    palpites = cur.fetchall(); cur.close(); conn.close()
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute('SELECT usuario, jogo_id, gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo FROM palpites ORDER BY id DESC')
+    palpites = [{'usuario': r[0], 'jogo_id': r[1], 'gols_a': r[2], 'gols_b': r[3], 'escanteios': r[4], 'amarelos': r[5], 'vermelhos': r[6], 'subs': r[7], 'acrescimo': r[8]} for r in cur.fetchall()]
+    cur.close(); conn.close()
     return render_template('apostas.html', palpites=palpites)
 
 if __name__ == '__main__': app.run()
