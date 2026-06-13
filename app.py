@@ -1,10 +1,12 @@
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_super_segura'
 
-# 1. Usuários e Senhas Restritos (Fornecidos por você)
+# 1. Usuários e Senhas Restritos
 USUARIOS_PERMITIDOS = {
     "Joao mano": "JMOV123",
     "Lucas": "LCS123",
@@ -24,8 +26,39 @@ JOGOS_ATUAIS = [
     {"id": 3, "time_a": "Inglaterra", "time_b": "Espanha", "placar": "- x -", "status": "EM BREVE"}
 ]
 
-# 3. Memória temporária para os palpites
-palpites_salvos = []
+# Função para conectar ao Banco de Dados Neon
+def get_db_connection():
+    # Ele vai pegar a DATABASE_URL lá do Render
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    return conn
+
+# Cria a tabela automaticamente se ela não existir
+def criar_tabela():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS palpites (
+                id SERIAL PRIMARY KEY,
+                usuario VARCHAR(50),
+                jogo_id INT,
+                gols_a VARCHAR(10),
+                gols_b VARCHAR(10),
+                escanteios VARCHAR(10),
+                amarelos VARCHAR(10),
+                vermelhos VARCHAR(10),
+                subs VARCHAR(10),
+                acrescimo VARCHAR(10)
+            )
+        ''')
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("Erro ao criar tabela:", e)
+
+# Roda a criação da tabela assim que o app inicia
+criar_tabela()
 
 @app.route('/')
 def index():
@@ -54,8 +87,21 @@ def apostar():
         return jsonify({"erro": "Não autorizado"}), 401
     
     dados = request.json
-    dados['usuario'] = session['usuario']
-    palpites_salvos.append(dados)
+    
+    # Salva o palpite permanentemente no Banco de Dados Neon
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, escanteios, amarelos, vermelhos, subs, acrescimo)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ''', (
+        session['usuario'], dados['jogo_id'], dados['gols_a'], dados['gols_b'], 
+        dados['escanteios'], dados['amarelos'], dados['vermelhos'], 
+        dados['subs'], dados['acrescimo']
+    ))
+    conn.commit()
+    cur.close()
+    conn.close()
     
     return jsonify({"sucesso": True})
 
@@ -63,6 +109,15 @@ def apostar():
 def apostas_publicas():
     if 'usuario' not in session: 
         return redirect(url_for('login'))
+        
+    # Busca todas as apostas do Banco de Dados Neon
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor) # Retorna como Dicionário igual o Flask gosta
+    cur.execute('SELECT * FROM palpites ORDER BY id DESC')
+    palpites_salvos = cur.fetchall()
+    cur.close()
+    conn.close()
+    
     return render_template('apostas.html', palpites=palpites_salvos)
 
 if __name__ == '__main__':
