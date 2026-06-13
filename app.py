@@ -21,18 +21,16 @@ USUARIOS_PERMITIDOS = {
     "Sauer": "admin123"
 }
 
-# --- SISTEMA DE CACHE DINÂMICO (O "Mapa de Injeção") ---
+# --- SISTEMA DE CACHE DINÂMICO ---
 cache_jogos = {
     "dados": [],
     "ultima_atualizacao": None,
-    "tem_jogo_ao_vivo": False  # Sensor para saber se o motor está acelerado
+    "tem_jogo_ao_vivo": False
 }
 
 def obter_jogos_copa():
     agora = datetime.now()
     
-    # Se tem jogo rolando, atualiza a cada 4 minutos (preserva as 100 requisições). 
-    # Se não tem, entra em marcha lenta (60 minutos).
     minutos_espera = 4 if cache_jogos["tem_jogo_ao_vivo"] else 60
     
     if cache_jogos["ultima_atualizacao"] and (agora - cache_jogos["ultima_atualizacao"]) < timedelta(minutes=minutos_espera):
@@ -50,6 +48,11 @@ def obter_jogos_copa():
         response = requests.get(url, headers=headers, params=querystring)
         dados_api = response.json()
         
+        # Injeção de diagnóstico
+        if 'errors' in dados_api and dados_api['errors']:
+            print("🚨 ERRO NA API:", dados_api['errors'])
+            return cache_jogos["dados"]
+            
         jogos_reais = []
         tem_ao_vivo_agora = False
         
@@ -63,7 +66,6 @@ def obter_jogos_copa():
             
             placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}"
             
-            # Tradução e ativação do sensor de AO VIVO
             if status_api in ['1H', 'HT', '2H', 'ET', 'P', 'LIVE']:
                 status = "AO VIVO"
                 tem_ao_vivo_agora = True
@@ -84,13 +86,16 @@ def obter_jogos_copa():
         jogos_reais.sort(key=lambda x: x['timestamp'])
         
         agora_ts = agora.timestamp()
-        um_dia_em_segundos = 86400
         
-        # Filtra os jogos de ontem, hoje e amanhã
-        jogos_relevantes = [j for j in jogos_reais if j['timestamp'] > (agora_ts - um_dia_em_segundos)]
-        lista_final = jogos_relevantes[:10]
+        # Filtra os jogos de ontem pra frente
+        jogos_futuros = [j for j in jogos_reais if j['timestamp'] > (agora_ts - 86400)]
         
-        # Salva na memória do servidor
+        # Se não tiver jogo recente (filtro vazio), exibe os últimos/próximos da lista
+        if len(jogos_futuros) == 0 and len(jogos_reais) > 0:
+            jogos_futuros = jogos_reais
+            
+        lista_final = jogos_futuros[:10]
+        
         cache_jogos["dados"] = lista_final
         cache_jogos["ultima_atualizacao"] = agora
         cache_jogos["tem_jogo_ao_vivo"] = tem_ao_vivo_agora
@@ -98,7 +103,7 @@ def obter_jogos_copa():
         return lista_final
 
     except Exception as e:
-        print("Erro na API:", e)
+        print("Erro Crítico na API:", e)
         return cache_jogos["dados"]
 
 def get_db_connection():
