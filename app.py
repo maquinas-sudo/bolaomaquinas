@@ -1,11 +1,10 @@
 import os
-import psycopg2
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_super_segura'
 
-# 1. Sistema de Login Restrito
+# 1. Dicionário de usuários restritos (Login fornecido por você)
 USUARIOS_PERMITIDOS = {
     "Joao mano": "JMOV123",
     "Lucas": "LCS123",
@@ -14,25 +13,25 @@ USUARIOS_PERMITIDOS = {
     "Joao Vitor": "JVND123",
     "Magno": "GMAS123",
     "Salsicha": "AVRZ123",
-    "Teste": "teste"
+    "Teste": "teste",
+    "Sauer": "admin123"
 }
 
-def get_db():
-    return psycopg2.connect(os.environ['DATABASE_URL'])
+# 2. Simulação de Jogos Reais (Depois isso virá da API)
+JOGOS_ATUAIS = [
+    {"id": 1, "time_a": "Brasil", "time_b": "França", "placar": "1 x 1", "status": "AO VIVO"},
+    {"id": 2, "time_a": "Argentina", "time_b": "Croácia", "placar": "2 x 0", "status": "RESULTADOS"},
+    {"id": 3, "time_a": "Inglaterra", "time_b": "Espanha", "placar": "- x -", "status": "EM BREVE"}
+]
+
+# Banco de dados em memória para os palpites (temporário até ligarmos o Neon)
+palpites_salvos = []
 
 @app.route('/')
 def index():
     if 'usuario' not in session: 
         return redirect(url_for('login'))
-    
-    # 2. Estrutura de Jogos Reais (Isso será substituído pela API real no futuro)
-    jogos = [
-        {"id": 1, "time_a": "Brasil", "time_b": "França", "gols_a": 1, "gols_b": 0, "status": "AO VIVO"},
-        {"id": 2, "time_a": "Alemanha", "time_b": "Japão", "gols_a": 2, "gols_b": 2, "status": "RESULTADOS"},
-        {"id": 3, "time_a": "Argentina", "time_b": "Inglaterra", "gols_a": "-", "gols_b": "-", "status": "EM BREVE"}
-    ]
-
-    return render_template('index.html', usuario=session['usuario'], jogos=jogos)
+    return render_template('index.html', usuario=session['usuario'], jogos=JOGOS_ATUAIS)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -41,7 +40,7 @@ def login():
         usuario = request.form['usuario']
         senha = request.form['senha']
         
-        # Verifica se o usuário e senha batem exatamente com a sua lista
+        # Verificação restrita
         if usuario in USUARIOS_PERMITIDOS and USUARIOS_PERMITIDOS[usuario] == senha:
             session['usuario'] = usuario
             return redirect(url_for('index'))
@@ -50,11 +49,23 @@ def login():
             
     return render_template('login.html', erro=erro)
 
+@app.route('/apostar', methods=['POST'])
+def apostar():
+    if 'usuario' not in session:
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    dados = request.json
+    # Salva o palpite publicamente
+    dados['usuario'] = session['usuario']
+    palpites_salvos.append(dados)
+    
+    return jsonify({"sucesso": True})
+
 @app.route('/apostas_publicas')
 def apostas_publicas():
-    # Rota futura para listar as apostas de todo mundo
-    if 'usuario' not in session: return redirect(url_for('login'))
-    return "Aqui vai aparecer o painel com as apostas de todos os jogadores."
+    if 'usuario' not in session: 
+        return redirect(url_for('login'))
+    return render_template('apostas.html', palpites=palpites_salvos)
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
