@@ -30,11 +30,9 @@ def obter_dados_copa():
     headers = { 'X-Auth-Token': os.environ.get('API_KEY') }
     
     try:
-        # 1. Busca todos os Jogos
         res_jogos = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers).json()
         matches = res_jogos.get('matches', [])
         
-        # Descobre qual é a fase atual do torneio
         max_stage = 1
         for m in matches:
             if m.get('status') in ['IN_PLAY', 'PAUSED', 'FINISHED', 'AWARDED']:
@@ -44,7 +42,7 @@ def obter_dados_copa():
         jogos_arena = []
         jogos_futuros = []
         tem_ao_vivo_agora = False
-        limite_48h = agora + timedelta(hours=48)
+        limite_24h = agora + timedelta(hours=24) # Ajustado para 24 horas
         
         for match in matches:
             time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
@@ -86,29 +84,23 @@ def obter_dados_copa():
 
             stg_level = STAGE_ORDER.get(match.get('stage', 'GROUP_STAGE'), 1)
             
-            # Lógica de Filtro Inteligente (Arena vs Futuros)
             if status in ['AO VIVO', 'RESULTADOS']:
-                # Mostra o histórico só da fase atual e da imediatamente anterior
                 if stg_level >= max_stage - 1:
                     jogos_arena.append(jogo_formatado)
             else:
-                # Mostra jogos na arena apenas se acontecerem em até 48 horas
-                if dt_obj <= limite_48h:
+                if dt_obj <= limite_24h:
                     jogos_arena.append(jogo_formatado)
                 else:
                     jogos_futuros.append(jogo_formatado)
             
-        # Ordenação: Recentes no topo na Arena, cronológico na Agenda
         jogos_arena.sort(key=lambda x: x['timestamp'], reverse=True)
         jogos_futuros.sort(key=lambda x: x['timestamp'])
         
-        # 2. Artilheiros
         res_art = requests.get("https://api.football-data.org/v4/competitions/WC/scorers", headers=headers).json()
         artilheiros = []
         for s in res_art.get('scorers', [])[:5]:
             artilheiros.append({ "nome": s.get('player', {}).get('name'), "time": s.get('team', {}).get('name'), "gols": s.get('goals') })
             
-        # 3. Classificação
         res_stand = requests.get("https://api.football-data.org/v4/competitions/WC/standings", headers=headers).json()
         classificacao = []
         if 'standings' in res_stand:
@@ -150,11 +142,10 @@ def index():
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("SELECT gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites WHERE usuario = %s", (session['usuario'],))
     apostas = cur.fetchall()
-    gasto = sum([1 for p in apostas for f in p if f and f.strip()]) * 0.50
+    gasto = sum([1 for p in apostas for f in p if f and str(f).strip()]) * 0.50
     
     dados = obter_dados_copa()
     jogos = dados["jogos_arena"]
-    artilheiros = dados["artilheiros"]
     
     for jogo in jogos:
         jogo['vencedores_placar'] = []
@@ -163,13 +154,13 @@ def index():
             jogo['vencedores_placar'] = list(set([g[0] for g in cur.fetchall()]))
             
     cur.close(); conn.close()
-    return render_template('index.html', usuario=session['usuario'], jogos=jogos, artilheiros=artilheiros, gasto=f"{gasto:,.2f}".replace('.', ','))
+    return render_template('index.html', usuario=session['usuario'], jogos=jogos, gasto=f"{gasto:,.2f}".replace('.', ','))
 
 @app.route('/info')
 def info_torneio():
     if 'usuario' not in session: return redirect(url_for('login'))
     dados = obter_dados_copa()
-    return render_template('info.html', usuario=session['usuario'], classificacao=dados['classificacao'], jogos_futuros=dados['jogos_futuros'])
+    return render_template('info.html', usuario=session['usuario'], classificacao=dados['classificacao'], jogos_futuros=dados['jogos_futuros'], artilheiros=dados['artilheiros'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -189,11 +180,12 @@ def login():
 def apostar():
     dados = request.json
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], dados['jogo_id']))
+    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], dados.get('jogo_id')))
     if cur.fetchone(): cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Aposta já enviada para este jogo!"}), 400
     
+    # O uso do .get() garante que, se faltar um campo no envio (como 'subs'), o servidor não quebre (Solução do Travamento).
     cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                (session['usuario'], dados['jogo_id'], dados['gols_a'], dados['gols_b'], dados['amarelos'], dados['vermelhos'], dados['subs'], dados['acrescimo'], dados.get('penaltis', ''), dados.get('autor_gol', '')))
+                (session['usuario'], dados.get('jogo_id'), dados.get('gols_a'), dados.get('gols_b'), dados.get('amarelos', ''), dados.get('vermelhos', ''), dados.get('subs', ''), dados.get('acrescimo', ''), dados.get('penaltis', ''), dados.get('artilheiro', '')))
     conn.commit(); cur.close(); conn.close()
     return jsonify({"sucesso": True})
 
@@ -215,7 +207,7 @@ def apostas_publicas():
             
         apostas_agrupadas[nome_jogo].append({
             'usuario': r[0], 'gols_a': r[2], 'gols_b': r[3],
-            'amarelos': r[4], 'vermelhos': r[5], 'subs': r[6], 'acrescimo': r[7], 'penaltis': r[8], 'autor_gol': r[9]
+            'amarelos': r[4], 'vermelhos': r[5], 'acrescimo': r[7], 'penaltis': r[8], 'artilheiro': r[9]
         })
         
     cur.close(); conn.close()
