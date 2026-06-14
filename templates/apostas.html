@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apostas Públicas | Bolão Máquinas</title>
+    <title>Apostas Públicas | Bolão</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; }
@@ -17,7 +17,6 @@
         .card-jogo { background: #1a1a1a; border-radius: 8px; margin-bottom: 30px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .header-jogo { background: #222; padding: 15px 20px; font-size: 1.2em; font-weight: bold; color: #00ff88; border-bottom: 2px solid #333; }
         
-        /* A tabela ganha um container para rolar para os lados no celular se necessário */
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #2a2a2a; }
@@ -29,7 +28,6 @@
         .placar { font-size: 1.2em; font-weight: bold; color: #00ff88; background: rgba(0, 255, 136, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 255, 136, 0.2); }
         .dado-vazio { color: #555; }
 
-        /* Ajustes específicos para Celular (Mobile) */
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; }
             .btn-voltar { width: 100%; text-align: center; box-sizing: border-box; margin-top: 10px; }
@@ -41,14 +39,13 @@
 
 <div class="container">
     <div class="header">
-        <h2>📊 PAINEL DE APOSTAS PÚBLICAS</h2>
+        <h2>📊 PAINEL DE APOSTAS</h2>
         <a href="{{ url_for('index') }}" class="btn-voltar">⬅ VOLTAR PARA A ARENA</a>
     </div>
 
     {% if apostas_agrupadas|length == 0 %}
         <div style="text-align: center; padding: 50px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;">
             <h3 style="color: #00ff88;">A pista está vazia...</h3>
-            <p style="color: #aaa;">Nenhum jogador registrou palpites nos jogos atuais ainda.</p>
         </div>
     {% else %}
         {% for nome_jogo, palpites in apostas_agrupadas.items() %}
@@ -64,7 +61,7 @@
                             <th>Vermelhos</th>
                             <th>Acréscimos</th>
                             <th>Pênaltis</th>
-                            <th>Autor Gol</th>
+                            <th>Artilheiro</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,7 +79,7 @@
                             <td>{% if p.vermelhos %}{{ p.vermelhos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
                             <td>{% if p.acrescimo %}{{ p.acrescimo }}'{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
                             <td style="color: #ffcc00; font-weight: bold;">{% if p.penaltis %}{{ p.penaltis }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.autor_gol %}{{ p.autor_gol }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.artilheiro %}{{ p.artilheiro }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
