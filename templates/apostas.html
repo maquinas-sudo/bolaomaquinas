@@ -4,19 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apostas Públicas | Bolão Máquinas</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; }
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; }
         .container { max-width: 1000px; margin: auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;}
-        .header h2 { color: #fff; margin: 0; font-size: 1.5em; }
+        .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
         .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #444; transition: 0.2s;}
         .btn-voltar:hover { background: #444; border-color: #888; }
         
         .card-jogo { background: #1a1a1a; border-radius: 8px; margin-bottom: 30px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .header-jogo { background: #222; padding: 15px 20px; font-size: 1.2em; font-weight: bold; color: #00ff88; border-bottom: 2px solid #333; }
         
+        /* A tabela ganha um container para rolar para os lados no celular se necessário */
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #2a2a2a; }
@@ -27,6 +28,13 @@
         .user-highlight { font-weight: bold; color: #fff; text-align: left; }
         .placar { font-size: 1.2em; font-weight: bold; color: #00ff88; background: rgba(0, 255, 136, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 255, 136, 0.2); }
         .dado-vazio { color: #555; }
+
+        /* Ajustes específicos para Celular (Mobile) */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: flex-start; }
+            .btn-voltar { width: 100%; text-align: center; box-sizing: border-box; margin-top: 10px; }
+            th, td { padding: 8px; font-size: 0.9em; }
+        }
     </style>
 </head>
 <body>
@@ -40,6 +48,7 @@
     {% if apostas_agrupadas|length == 0 %}
         <div style="text-align: center; padding: 50px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;">
             <h3 style="color: #00ff88;">A pista está vazia...</h3>
+            <p style="color: #aaa;">Nenhum jogador registrou palpites nos jogos atuais ainda.</p>
         </div>
     {% else %}
         {% for nome_jogo, palpites in apostas_agrupadas.items() %}
@@ -65,7 +74,9 @@
                             <td>
                                 {% if p.gols_a and p.gols_b %}
                                     <span class="placar">{{ p.gols_a }} x {{ p.gols_b }}</span>
-                                {% else %}<span class="dado-vazio">-</span>{% endif %}
+                                {% else %}
+                                    <span class="dado-vazio">-</span>
+                                {% endif %}
                             </td>
                             <td>{% if p.amarelos %}{{ p.amarelos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
                             <td>{% if p.vermelhos %}{{ p.vermelhos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
