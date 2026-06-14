@@ -10,15 +10,23 @@ app.secret_key = 'chave_secreta_super_segura'
 USUARIOS_PERMITIDOS = {
     "Joao mano": "JMOV123", "Lucas": "LCS123", "Matheus": "MCINTRA123",
     "Pedro": "PHACY123", "Joao Vitor": "JVND123", "Magno": "GMAS123",
-    "Salsicha": "AVRZ123", "Teste": "teste", "Sauer": "admin123"
+    "Salsicha": "AVRZ123", "Teste": "teste00", "Sauer": "admin123"
 }
 
 cache_dados = {"jogos_arena": [], "jogos_futuros": [], "classificacao": [], "artilheiros": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": False}
+config_app = {"manutencao": False}
 
 STAGE_ORDER = {
     'GROUP_STAGE': 1, 'LAST_16': 2, 'QUARTER_FINALS': 3,
     'SEMI_FINALS': 4, 'THIRD_PLACE': 5, 'FINAL': 6
 }
+
+# --- TRAVA DE MANUTENÇÃO (CHAVE GERAL) ---
+@app.before_request
+def checar_manutencao():
+    if config_app["manutencao"] and request.endpoint not in ['login', 'admin_toggle_manutencao'] and not request.path.startswith('/static'):
+        if session.get('usuario') != 'Teste':
+            return "<body style='background:#121212; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;'><h1 style='color:#ffcc00; font-family:sans-serif; text-align:center;'>🛠️ CALMA, ESTAMOS EM MANUTENÇÃO</h1></body>", 503
 
 def obter_dados_copa():
     agora = datetime.now(timezone.utc)
@@ -49,217 +57,36 @@ def obter_dados_copa():
             time_b = match.get('awayTeam', {}).get('shortName') or match.get('awayTeam', {}).get('name') or "A Definir"
             crest_a = match.get('homeTeam', {}).get('crest', '')
             crest_b = match.get('awayTeam', {}).get('crest', '')
-            
             fase = match.get('stage', '').replace('_', ' ').title()
             grupo = match.get('group', '').replace('_', ' ') if match.get('group') else ''
-            info_fase = f"{fase} {grupo}".strip()
             
             gols_a = match.get('score', {}).get('fullTime', {}).get('home')
             gols_b = match.get('score', {}).get('fullTime', {}).get('away')
-            
             penaltis_a = match.get('score', {}).get('penalties', {}).get('home')
             penaltis_b = match.get('score', {}).get('penalties', {}).get('away')
             placar_penaltis = f" (Pên: {penaltis_a}x{penaltis_b})" if penaltis_a is not None else ""
-            
             placar = "- x -" if gols_a is None else f"{gols_a} x {gols_b}{placar_penaltis}"
             status_api = match.get('status')
             
-            if status_api in ['IN_PLAY', 'PAUSED']:
-                status = "AO VIVO"
-                tem_ao_vivo_agora = True
-            elif status_api in ['FINISHED', 'AWARDED']:
-                status = "ENCERRADO"
-            else:
-                status = "EM BREVE..."
+            if status_api in ['IN_PLAY', 'PAUSED']: status = "AO VIVO"; tem_ao_vivo_agora = True
+            elif status_api in ['FINISHED', 'AWARDED']: status = "ENCERRADO"
+            else: status = "EM BREVE..."
                 
             dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            data_formatada = dt_obj.strftime('%d/%m %H:%M')
+            
+            # --- AJUSTE DE FUSO HORÁRIO (Campo Grande - MS | UTC-4) ---
+            dt_local = dt_obj - timedelta(hours=4)
             
             jogo_formatado = {
                 "id": match['id'], "time_a": time_a, "time_b": time_b, "crest_a": crest_a, "crest_b": crest_b,
-                "placar": placar, "status": status, "info_fase": info_fase, "timestamp": dt_obj.timestamp(),
-                "data_str": data_formatada, "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
+                "placar": placar, "status": status, "info_fase": f"{fase} {grupo}".strip(), 
+                "timestamp": dt_obj.timestamp(), 
+                "data_str": dt_local.strftime('%d/%m %H:%M'), # Mostra o horário ajustado
+                "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
                 "gols_b_real": str(gols_b) if gols_b is not None else "N/A"
             }
 
             stg_level = STAGE_ORDER.get(match.get('stage', 'GROUP_STAGE'), 1)
             
             if status in ['AO VIVO', 'ENCERRADO']:
-                if stg_level >= max_stage - 1:
-                    jogos_arena.append(jogo_formatado)
-            else:
-                if dt_obj <= limite_24h:
-                    jogos_arena.append(jogo_formatado)
-                else:
-                    jogos_futuros.append(jogo_formatado)
-            
-        jogos_arena.sort(key=lambda x: x['timestamp'], reverse=True)
-        jogos_futuros.sort(key=lambda x: x['timestamp'])
-        
-        res_art = requests.get("https://api.football-data.org/v4/competitions/WC/scorers", headers=headers).json()
-        artilheiros = []
-        for s in res_art.get('scorers', [])[:5]:
-            artilheiros.append({ "nome": s.get('player', {}).get('name'), "time": s.get('team', {}).get('name'), "gols": s.get('goals') })
-            
-        res_stand = requests.get("https://api.football-data.org/v4/competitions/WC/standings", headers=headers).json()
-        classificacao = []
-        if 'standings' in res_stand:
-            for group in res_stand['standings']:
-                if group['type'] == 'TOTAL':
-                    classificacao.append({
-                        'grupo': group.get('group', '').replace('_', ' '),
-                        'times': [{
-                            'nome': t['team'].get('shortName') or t['team'].get('name'),
-                            'crest': t['team'].get('crest', ''),
-                            'pts': t['points'], 'pj': t['playedGames'],
-                            'v': t['won'], 'e': t['draw'], 'd': t['lost'], 'sg': t['goalDifference']
-                        } for t in group['table']]
-                    })
-
-        cache_dados.update({"jogos_arena": jogos_arena, "jogos_futuros": jogos_futuros, "classificacao": classificacao, "artilheiros": artilheiros, "ultima_atualizacao": agora, "tem_jogo_ao_vivo": tem_ao_vivo_agora})
-        return cache_dados
-    except Exception as e: 
-        print(f"Erro API: {e}")
-        return cache_dados
-
-def get_db_connection(): return psycopg2.connect(os.environ['DATABASE_URL'])
-
-def criar_tabela():
-    try:
-        conn = get_db_connection(); cur = conn.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS palpites (id SERIAL PRIMARY KEY, usuario VARCHAR(50), jogo_id INT, gols_a VARCHAR(10), gols_b VARCHAR(10), amarelos VARCHAR(50), vermelhos VARCHAR(50), subs VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), autor_gol VARCHAR(50))''')
-        for col in ['amarelos', 'vermelhos', 'subs', 'acrescimo', 'penaltis', 'autor_gol']:
-            try: cur.execute(f'ALTER TABLE palpites ADD COLUMN {col} VARCHAR(50)')
-            except: conn.rollback()
-            
-        # Criação da tabela de Administração para Links e Dados Manuais
-        cur.execute('''CREATE TABLE IF NOT EXISTS jogos_admin (jogo_id INT PRIMARY KEY, link_stream VARCHAR(255), amarelos VARCHAR(50), vermelhos VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), artilheiro VARCHAR(50))''')
-        conn.commit(); cur.close(); conn.close()
-    except Exception as e: print("Erro na tabela:", e)
-
-criar_tabela()
-
-@app.route('/')
-def index():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    conn = get_db_connection(); cur = conn.cursor()
-    
-    # Busca palpites do usuario logado
-    cur.execute("SELECT gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites WHERE usuario = %s", (session['usuario'],))
-    apostas = cur.fetchall()
-    gasto = sum([1 for p in apostas for f in p if f and str(f).strip()]) * 0.50
-    
-    # Busca dados adicionais preenchidos pelo admin
-    cur.execute("SELECT jogo_id, link_stream, amarelos, vermelhos, acrescimo, penaltis, artilheiro FROM jogos_admin")
-    admin_data = {r[0]: {'link': r[1], 'amarelos': r[2], 'vermelhos': r[3], 'acrescimo': r[4], 'penaltis': r[5], 'artilheiro': r[6]} for r in cur.fetchall()}
-    
-    dados = obter_dados_copa()
-    jogos = dados["jogos_arena"]
-    
-    for jogo in jogos:
-        jogo['vencedores_placar'] = []
-        if jogo['status'] == 'ENCERRADO' and jogo['gols_a_real'] != "N/A":
-            cur.execute("SELECT usuario FROM palpites WHERE jogo_id = %s AND gols_a = %s AND gols_b = %s", (jogo['id'], jogo['gols_a_real'], jogo['gols_b_real']))
-            jogo['vencedores_placar'] = list(set([g[0] for g in cur.fetchall()]))
-            
-    cur.close(); conn.close()
-    return render_template('index.html', usuario=session['usuario'], jogos=jogos, admin_data=admin_data, gasto=f"{gasto:,.2f}".replace('.', ','))
-
-@app.route('/info')
-def info_torneio():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    dados = obter_dados_copa()
-    return render_template('info.html', usuario=session['usuario'], classificacao=dados['classificacao'], jogos_futuros=dados['jogos_futuros'], artilheiros=dados['artilheiros'])
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if 'usuario' in session: return redirect(url_for('index'))
-    erro = None
-    if request.method == 'POST':
-        user = request.form.get('usuario')
-        pwd = request.form.get('senha')
-        if user in USUARIOS_PERMITIDOS and USUARIOS_PERMITIDOS[user] == pwd:
-            session['usuario'] = user
-            return redirect(url_for('index'))
-        else:
-            erro = "Acesso negado. Credenciais inválidas."
-    return render_template('login.html', erro=erro)
-
-@app.route('/apostar', methods=['POST'])
-def apostar():
-    dados = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], dados.get('jogo_id')))
-    if cur.fetchone(): cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Aposta já enviada para este jogo!"}), 400
-    
-    cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                (session['usuario'], dados.get('jogo_id'), dados.get('gols_a'), dados.get('gols_b'), dados.get('amarelos', ''), dados.get('vermelhos', ''), dados.get('subs', ''), dados.get('acrescimo', ''), dados.get('penaltis', ''), dados.get('artilheiro', '')))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({"sucesso": True})
-
-# --- NOVAS ROTAS EXCLUSIVAS PARA O ADMIN (TESTE) ---
-
-@app.route('/admin_salvar_jogo', methods=['POST'])
-def admin_salvar_jogo():
-    if session.get('usuario') != 'Teste': return jsonify({"sucesso": False, "erro": "Acesso negado."})
-    d = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute('''INSERT INTO jogos_admin (jogo_id, link_stream, amarelos, vermelhos, acrescimo, penaltis, artilheiro) 
-                   VALUES (%s, %s, %s, %s, %s, %s, %s)
-                   ON CONFLICT (jogo_id) DO UPDATE SET 
-                   link_stream=EXCLUDED.link_stream, amarelos=EXCLUDED.amarelos, vermelhos=EXCLUDED.vermelhos, 
-                   acrescimo=EXCLUDED.acrescimo, penaltis=EXCLUDED.penaltis, artilheiro=EXCLUDED.artilheiro''', 
-                (d.get('jogo_id'), d.get('link_stream'), d.get('amarelos'), d.get('vermelhos'), d.get('acrescimo'), d.get('penaltis'), d.get('artilheiro')))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({"sucesso": True})
-
-@app.route('/admin_editar_aposta', methods=['POST'])
-def admin_editar_aposta():
-    if session.get('usuario') != 'Teste': return jsonify({"sucesso": False, "erro": "Acesso negado."})
-    d = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute('''UPDATE palpites SET gols_a=%s, gols_b=%s, amarelos=%s, vermelhos=%s, acrescimo=%s, penaltis=%s, autor_gol=%s WHERE id=%s''',
-                (d.get('gols_a'), d.get('gols_b'), d.get('amarelos'), d.get('vermelhos'), d.get('acrescimo'), d.get('penaltis'), d.get('artilheiro'), d.get('aposta_id')))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({"sucesso": True})
-
-@app.route('/apostas_publicas')
-def apostas_publicas():
-    if 'usuario' not in session: return redirect(url_for('login'))
-    dados = obter_dados_copa()
-    todos_jogos = dados["jogos_arena"] + dados["jogos_futuros"]
-    mapa_jogos = {j['id']: f"{j['time_a']} x {j['time_b']}" for j in todos_jogos}
-    
-    conn = get_db_connection(); cur = conn.cursor()
-    # Puxamos o 'id' (r[0]) agora para o Admin poder editar
-    cur.execute('SELECT id, usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites ORDER BY jogo_id DESC, id DESC')
-    
-    apostas_agrupadas = {}
-    for r in cur.fetchall():
-        id_jogo = r[2]
-        nome_jogo = mapa_jogos.get(id_jogo, f"Jogo #{id_jogo}")
-        if nome_jogo not in apostas_agrupadas: apostas_agrupadas[nome_jogo] = []
-            
-        apostas_agrupadas[nome_jogo].append({
-            'aposta_id': r[0], 'usuario': r[1], 'gols_a': r[3], 'gols_b': r[4],
-            'amarelos': r[5], 'vermelhos': r[6], 'acrescimo': r[8], 'penaltis': r[9], 'artilheiro': r[10]
-        })
-        
-    cur.close(); conn.close()
-    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas, usuario=session['usuario'])
-
-@app.route('/zerar_banco_oficina_secreta')
-def zerar_banco():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("TRUNCATE TABLE palpites RESTART IDENTITY;")
-        cur.execute("TRUNCATE TABLE jogos_admin;") # Limpa as edições do admin também
-        conn.commit()
-        cur.close()
-        conn.close()
-        return "<h1 style='color: green; text-align: center; margin-top: 50px;'>✅ Banco de dados zerado com sucesso! A pista está limpa.</h1>"
-    except Exception as e:
-        return f"Erro ao limpar: {e}"
-
-if __name__ == '__main__': app.run()
+                if stg_level >= max
