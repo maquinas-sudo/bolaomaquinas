@@ -27,13 +27,12 @@
         .confronto { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .times-box { display: flex; align-items: center; gap: 10px; font-size: 1.3em; font-weight: bold; color: #fff;}
         .crest { width: 35px; height: 35px; object-fit: contain; }
+        
+        .area-placar { display: flex; flex-direction: column; align-items: center; justify-content: center;}
         .placar-box { font-size: 1.5em; color: #fff; font-weight: bold; background: #111; padding: 8px 18px; border-radius: 6px; text-align: center; border: 1px solid #333; }
         
         .btn-cazetv-small { background: rgba(255, 51, 51, 0.1); color: #ff4444; padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255, 51, 51, 0.3); text-decoration: none; font-size: 0.75em; font-weight: bold; margin-top: 10px; display: inline-block; transition: 0.2s; }
         .btn-cazetv-small:hover { background: rgba(255, 51, 51, 0.3); }
-
-        .estatisticas-painel { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 20px; margin-top: 40px; }
-        .artilheiro-item { display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding: 10px 0; }
 
         /* Modal */
         #modal-aposta { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #00ff88; width: 90%; max-width: 420px; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
@@ -45,13 +44,13 @@
         #btn-confirmar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
         #msg-retorno { display: none; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; margin-top: 15px; }
 
-        /* CORREÇÃO PARA CELULAR (Evita amontoado) */
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; }
             .caixa-infos { width: 100%; flex-direction: column; align-items: stretch; }
             .caixa-infos a, .caixa-infos div { text-align: center; }
             .confronto { flex-direction: column; align-items: flex-start; gap: 15px; }
-            .placar-box { align-self: flex-start; padding: 5px 12px; font-size: 1.3em; }
+            .area-placar { align-items: flex-start; }
+            .placar-box { padding: 5px 12px; font-size: 1.3em; }
             .times-box { font-size: 1.1em; flex-wrap: wrap; }
             .crest { width: 25px; height: 25px; }
             #modal-aposta { padding: 20px; }
@@ -66,16 +65,16 @@
     <div class="header">
         <h2>⚽ ARENA</h2>
         <div class="caixa-infos">
-            <div class="hodometro">CAIXA: R$ {{ gasto }}</div>
+            <div class="hodometro">TOTAL APOSTADO: R$ {{ gasto }}</div>
             <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">📊 APOSTAS</a>
-            <a href="{{ url_for('info_torneio') }}" class="btn-secundario">🏆 AGENDA</a>
+            <a href="{{ url_for('info_torneio') }}" class="btn-secundario">🏆 AGENDA & DADOS</a>
         </div>
     </div>
 
     {% if jogos|length == 0 %}
         <div style="text-align: center; margin-top: 50px; background: #1e1e1e; padding: 40px; border-radius: 10px; border: 1px solid #333;">
             <h3 style="color: #00ff88;">Pista Vazia...</h3>
-            <p style="color: #aaa;">Não há jogos pelas próximas 48 horas.</p>
+            <p style="color: #aaa;">Não há jogos pelas próximas 24 horas.</p>
         </div>
     {% else %}
         {% for jogo in jogos %}
@@ -93,35 +92,26 @@
                         {% if jogo.status == 'AO VIVO' %}🔴 {% elif jogo.status == 'RESULTADOS' %}🟡 {% else %}⚪ {% endif %}{{ jogo.status }}
                     </div>
                 </div>
-                <div class="placar-box">{{ jogo.placar }}</div>
+                
+                <div class="area-placar">
+                    <div class="placar-box">{{ jogo.placar }}</div>
+                    <!-- Vencedor do Placar com Medalha Verde -->
+                    {% if jogo.status == 'RESULTADOS' and jogo.vencedores_placar|length > 0 %}
+                        <div style="color: #00ff88; font-size: 0.8em; font-weight: bold; margin-top: 5px; text-align: center;">
+                            🥇 {{ jogo.vencedores_placar|join(', ') }}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
             
-            <!-- Botão CazéTV só no Ao Vivo, pequeno e sutil -->
             {% if jogo.status == 'AO VIVO' %}
                 <a href="https://www.youtube.com/results?search_query=Ao+vivo+{{ jogo.time_a }}+x+{{ jogo.time_b }}+CazeTV" target="_blank" class="btn-cazetv-small">▶ Assista agora</a>
-            {% endif %}
-            
-            {% if jogo.status == 'RESULTADOS' and jogo.vencedores_placar|length > 0 %}
-                <div style="color: #00ff88; font-size: 0.8em; margin-top: 10px;">🏆 Acertou o Placar: {{ jogo.vencedores_placar|join(', ') }}</div>
             {% endif %}
         </div>
         {% endfor %}
     {% endif %}
-
-    {% if artilheiros|length > 0 %}
-    <div class="estatisticas-painel">
-        <h3 style="color: #00ff88; margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 10px;">👟 ARTILHARIA</h3>
-        {% for art in artilheiros %}
-            <div class="artilheiro-item">
-                <span><b>{{ art.nome }}</b> <span style="color:#888; font-size:0.85em;">({{ art.time }})</span></span>
-                <span style="color: #00ff88; font-weight: bold;">{{ art.gols }} Gols</span>
-            </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 </div>
 
-<!-- Overlay e Modal (O script continua igual ao anterior) -->
 <div class="overlay" id="overlay" onclick="fecharModal()"></div>
 
 <div id="modal-aposta">
@@ -135,7 +125,7 @@
         <div class="input-group"><label>Vermelhos (Total):</label><input type="number" class="bet-input" id="vermelhos" min="0" oninput="calcularTotal()"></div>
         <div class="input-group"><label>Acréscimos (Min):</label><input type="number" class="bet-input" id="acrescimo" min="0" oninput="calcularTotal()"></div>
         <div class="input-group"><label>Placar Pênaltis:</label><input type="text" class="bet-input" id="penaltis" placeholder="Ex: 4x3" oninput="calcularTotal()"></div>
-        <div class="input-group"><label>Jogador a Marcar:</label><input type="text" class="bet-input" id="autor_gol" placeholder="Nome" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Artilheiro do Jogo:</label><input type="text" class="bet-input" id="artilheiro" placeholder="Nome" oninput="calcularTotal()"></div>
 
         <button id="btn-confirmar" onclick="enviarAposta()" disabled>Selecione um palpite...</button>
         <div id="msg-retorno"></div>
@@ -160,7 +150,7 @@
     function calcularTotal() {
         let c = 0;
         if (document.getElementById('gols_a').value !== '' || document.getElementById('gols_b').value !== '') c++;
-        ['amarelos', 'vermelhos', 'acrescimo', 'penaltis', 'autor_gol'].forEach(id => { if(document.getElementById(id).value !== '') c++; });
+        ['amarelos', 'vermelhos', 'acrescimo', 'penaltis', 'artilheiro'].forEach(id => { if(document.getElementById(id).value !== '') c++; });
         const btn = document.getElementById('btn-confirmar');
         if (c > 0) { btn.innerText = `Confirmar ${c} aposta(s) - Total: R$ ${(c * 0.50).toFixed(2).replace('.', ',')}`; btn.disabled = false; }
         else { btn.innerText = `SELECIONE UM PALPITE`; btn.disabled = true; }
@@ -168,18 +158,28 @@
     function enviarAposta() {
         const btn = document.getElementById('btn-confirmar');
         btn.innerText = "Processando..."; btn.disabled = true;
+        
         fetch('/apostar', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 jogo_id: document.getElementById('jogo_id').value, gols_a: document.getElementById('gols_a').value, gols_b: document.getElementById('gols_b').value,
                 amarelos: document.getElementById('amarelos').value, vermelhos: document.getElementById('vermelhos').value,
-                acrescimo: document.getElementById('acrescimo').value, penaltis: document.getElementById('penaltis').value, autor_gol: document.getElementById('autor_gol').value
+                acrescimo: document.getElementById('acrescimo').value, penaltis: document.getElementById('penaltis').value, artilheiro: document.getElementById('artilheiro').value
             })
-        }).then(r => r.json()).then(data => {
+        })
+        .then(r => r.json())
+        .then(data => {
             const m = document.getElementById('msg-retorno');
             btn.style.display = 'none'; m.style.display = 'block';
             if (data.sucesso) { m.className = 'msg-sucesso'; m.innerText = '✅ Aposta confirmada!'; setTimeout(() => { window.location.reload(); }, 1500); } 
             else { m.className = 'msg-erro'; m.innerText = '❌ ' + data.erro; setTimeout(() => { fecharModal(); }, 3500); }
+        })
+        .catch(err => {
+            /* Impede o botão de travar eternamente se houver falha de internet ou de servidor */
+            const m = document.getElementById('msg-retorno');
+            btn.style.display = 'none'; m.style.display = 'block';
+            m.className = 'msg-erro'; m.innerText = '❌ Erro de conexão com o servidor.';
+            setTimeout(() => { fecharModal(); }, 3500);
         });
     }
 </script>
