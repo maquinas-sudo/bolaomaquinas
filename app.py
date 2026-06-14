@@ -42,7 +42,7 @@ def obter_dados_copa():
         jogos_arena = []
         jogos_futuros = []
         tem_ao_vivo_agora = False
-        limite_24h = agora + timedelta(hours=24) # Ajustado para 24 horas
+        limite_24h = agora + timedelta(hours=24)
         
         for match in matches:
             time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
@@ -68,7 +68,7 @@ def obter_dados_copa():
                 status = "AO VIVO"
                 tem_ao_vivo_agora = True
             elif status_api in ['FINISHED', 'AWARDED']:
-                status = "RESULTADOS"
+                status = "ENCERRADO"
             else:
                 status = "EM BREVE..."
                 
@@ -84,7 +84,7 @@ def obter_dados_copa():
 
             stg_level = STAGE_ORDER.get(match.get('stage', 'GROUP_STAGE'), 1)
             
-            if status in ['AO VIVO', 'RESULTADOS']:
+            if status in ['AO VIVO', 'ENCERRADO']:
                 if stg_level >= max_stage - 1:
                     jogos_arena.append(jogo_formatado)
             else:
@@ -131,6 +131,9 @@ def criar_tabela():
         for col in ['amarelos', 'vermelhos', 'subs', 'acrescimo', 'penaltis', 'autor_gol']:
             try: cur.execute(f'ALTER TABLE palpites ADD COLUMN {col} VARCHAR(50)')
             except: conn.rollback()
+            
+        # Criação da tabela de Administração para Links e Dados Manuais
+        cur.execute('''CREATE TABLE IF NOT EXISTS jogos_admin (jogo_id INT PRIMARY KEY, link_stream VARCHAR(255), amarelos VARCHAR(50), vermelhos VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), artilheiro VARCHAR(50))''')
         conn.commit(); cur.close(); conn.close()
     except Exception as e: print("Erro na tabela:", e)
 
@@ -140,21 +143,27 @@ criar_tabela()
 def index():
     if 'usuario' not in session: return redirect(url_for('login'))
     conn = get_db_connection(); cur = conn.cursor()
+    
+    # Busca palpites do usuario logado
     cur.execute("SELECT gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites WHERE usuario = %s", (session['usuario'],))
     apostas = cur.fetchall()
     gasto = sum([1 for p in apostas for f in p if f and str(f).strip()]) * 0.50
+    
+    # Busca dados adicionais preenchidos pelo admin
+    cur.execute("SELECT jogo_id, link_stream, amarelos, vermelhos, acrescimo, penaltis, artilheiro FROM jogos_admin")
+    admin_data = {r[0]: {'link': r[1], 'amarelos': r[2], 'vermelhos': r[3], 'acrescimo': r[4], 'penaltis': r[5], 'artilheiro': r[6]} for r in cur.fetchall()}
     
     dados = obter_dados_copa()
     jogos = dados["jogos_arena"]
     
     for jogo in jogos:
         jogo['vencedores_placar'] = []
-        if jogo['status'] == 'RESULTADOS' and jogo['gols_a_real'] != "N/A":
+        if jogo['status'] == 'ENCERRADO' and jogo['gols_a_real'] != "N/A":
             cur.execute("SELECT usuario FROM palpites WHERE jogo_id = %s AND gols_a = %s AND gols_b = %s", (jogo['id'], jogo['gols_a_real'], jogo['gols_b_real']))
             jogo['vencedores_placar'] = list(set([g[0] for g in cur.fetchall()]))
             
     cur.close(); conn.close()
-    return render_template('index.html', usuario=session['usuario'], jogos=jogos, gasto=f"{gasto:,.2f}".replace('.', ','))
+    return render_template('index.html', usuario=session['usuario'], jogos=jogos, admin_data=admin_data, gasto=f"{gasto:,.2f}".replace('.', ','))
 
 @app.route('/info')
 def info_torneio():
@@ -183,9 +192,34 @@ def apostar():
     cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], dados.get('jogo_id')))
     if cur.fetchone(): cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Aposta já enviada para este jogo!"}), 400
     
-    # O uso do .get() garante que, se faltar um campo no envio (como 'subs'), o servidor não quebre (Solução do Travamento).
     cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
                 (session['usuario'], dados.get('jogo_id'), dados.get('gols_a'), dados.get('gols_b'), dados.get('amarelos', ''), dados.get('vermelhos', ''), dados.get('subs', ''), dados.get('acrescimo', ''), dados.get('penaltis', ''), dados.get('artilheiro', '')))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"sucesso": True})
+
+# --- NOVAS ROTAS EXCLUSIVAS PARA O ADMIN (TESTE) ---
+
+@app.route('/admin_salvar_jogo', methods=['POST'])
+def admin_salvar_jogo():
+    if session.get('usuario') != 'Teste': return jsonify({"sucesso": False, "erro": "Acesso negado."})
+    d = request.json
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute('''INSERT INTO jogos_admin (jogo_id, link_stream, amarelos, vermelhos, acrescimo, penaltis, artilheiro) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (jogo_id) DO UPDATE SET 
+                   link_stream=EXCLUDED.link_stream, amarelos=EXCLUDED.amarelos, vermelhos=EXCLUDED.vermelhos, 
+                   acrescimo=EXCLUDED.acrescimo, penaltis=EXCLUDED.penaltis, artilheiro=EXCLUDED.artilheiro''', 
+                (d.get('jogo_id'), d.get('link_stream'), d.get('amarelos'), d.get('vermelhos'), d.get('acrescimo'), d.get('penaltis'), d.get('artilheiro')))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"sucesso": True})
+
+@app.route('/admin_editar_aposta', methods=['POST'])
+def admin_editar_aposta():
+    if session.get('usuario') != 'Teste': return jsonify({"sucesso": False, "erro": "Acesso negado."})
+    d = request.json
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute('''UPDATE palpites SET gols_a=%s, gols_b=%s, amarelos=%s, vermelhos=%s, acrescimo=%s, penaltis=%s, autor_gol=%s WHERE id=%s''',
+                (d.get('gols_a'), d.get('gols_b'), d.get('amarelos'), d.get('vermelhos'), d.get('acrescimo'), d.get('penaltis'), d.get('artilheiro'), d.get('aposta_id')))
     conn.commit(); cur.close(); conn.close()
     return jsonify({"sucesso": True})
 
@@ -197,22 +231,35 @@ def apostas_publicas():
     mapa_jogos = {j['id']: f"{j['time_a']} x {j['time_b']}" for j in todos_jogos}
     
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute('SELECT usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites ORDER BY jogo_id DESC, id DESC')
+    # Puxamos o 'id' (r[0]) agora para o Admin poder editar
+    cur.execute('SELECT id, usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites ORDER BY jogo_id DESC, id DESC')
     
     apostas_agrupadas = {}
     for r in cur.fetchall():
-        id_jogo = r[1]
+        id_jogo = r[2]
         nome_jogo = mapa_jogos.get(id_jogo, f"Jogo #{id_jogo}")
         if nome_jogo not in apostas_agrupadas: apostas_agrupadas[nome_jogo] = []
             
         apostas_agrupadas[nome_jogo].append({
-            'usuario': r[0], 'gols_a': r[2], 'gols_b': r[3],
-            'amarelos': r[4], 'vermelhos': r[5], 'acrescimo': r[7], 'penaltis': r[8], 'artilheiro': r[9]
+            'aposta_id': r[0], 'usuario': r[1], 'gols_a': r[3], 'gols_b': r[4],
+            'amarelos': r[5], 'vermelhos': r[6], 'acrescimo': r[8], 'penaltis': r[9], 'artilheiro': r[10]
         })
         
     cur.close(); conn.close()
-    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas)
+    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas, usuario=session['usuario'])
 
+@app.route('/zerar_banco_oficina_secreta')
+def zerar_banco():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("TRUNCATE TABLE palpites RESTART IDENTITY;")
+        cur.execute("TRUNCATE TABLE jogos_admin;") # Limpa as edições do admin também
+        conn.commit()
+        cur.close()
+        conn.close()
+        return "<h1 style='color: green; text-align: center; margin-top: 50px;'>✅ Banco de dados zerado com sucesso! A pista está limpa.</h1>"
+    except Exception as e:
+        return f"Erro ao limpar: {e}"
 
-        
 if __name__ == '__main__': app.run()
