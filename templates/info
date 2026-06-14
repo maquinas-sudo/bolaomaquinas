@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda & Classificação | Bolão</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;}
+        .header h2 { color: #fff; margin: 0; font-size: 1.5em; }
+        .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #444; transition: 0.2s;}
+        .btn-voltar:hover { background: #444; border-color: #888; }
+        
+        h3 { color: #00ff88; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Agenda de Jogos Futuros */
+        .jogo-futuro { background: #1a1a1a; padding: 15px; border-radius: 6px; border-left: 4px solid #555; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .jogo-futuro-info { display: flex; flex-direction: column; gap: 5px; }
+        .times { font-weight: bold; font-size: 1.1em; color: #fff; display: flex; align-items: center; gap: 8px;}
+        .data { color: #888; font-size: 0.85em; }
+        .crest { width: 20px; height: 20px; }
+
+        /* Tabela de Classificação */
+        .grid-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }
+        .group-card { background: #1a1a1a; border-radius: 8px; border: 1px solid #333; overflow: hidden; }
+        .group-header { background: #222; padding: 12px; color: #00ff88; font-weight: bold; border-bottom: 2px solid #333; text-align: center; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a2a2a; }
+        th { background: #151515; color: #888; }
+        .team-cell { text-align: left; display: flex; align-items: center; gap: 8px; font-weight: bold; color: #fff; }
+
+        @media (max-width: 600px) {
+            .header { flex-direction: column; align-items: flex-start; }
+            .btn-voltar { width: 100%; text-align: center; box-sizing: border-box; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🏆 AGENDA & CLASSIFICAÇÃO</h2>
+        <a href="{{ url_for('index') }}" class="btn-voltar">⬅ VOLTAR PARA A ARENA</a>
+    </div>
+
+    <!-- Próximos Jogos (+ de 48h) -->
+    <h3>📅 Próximos Jogos</h3>
+    {% if jogos_futuros|length == 0 %}
+        <p style="color: #888;">Nenhum jogo agendado para o futuro distante.</p>
+    {% else %}
+        {% for jogo in jogos_futuros %}
+        <div class="jogo-futuro">
+            <div class="jogo-futuro-info">
+                <span class="data">{{ jogo.info_fase }} • {{ jogo.data_str }}</span>
+                <span class="times">
+                    {% if jogo.crest_a %}<img src="{{ jogo.crest_a }}" class="crest">{% endif %}
+                    {{ jogo.time_a }} x {{ jogo.time_b }}
+                    {% if jogo.crest_b %}<img src="{{ jogo.crest_b }}" class="crest">{% endif %}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Classificação / Tabelas -->
+    <h3>📊 Tabela de Classificação</h3>
+    {% if classificacao|length == 0 %}
+        <p style="color: #888;">As tabelas ainda não estão disponíveis ou é fase de mata-mata.</p>
+    {% else %}
+        <div class="grid-groups">
+            {% for c in classificacao %}
+            <div class="group-card">
+                <div class="group-header">{{ c.grupo }}</div>
+                <table>
+                    <thead>
+                        <tr><th>Seleção</th><th>P</th><th>J</th><th>V</th><th>SG</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for time in c.times %}
+                        <tr>
+                            <td class="team-cell">
+                                {% if time.crest %}<img src="{{ time.crest }}" class="crest">{% endif %}
+                                {{ time.nome }}
+                            </td>
+                            <td style="font-weight: bold; color: #00ff88;">{{ time.pts }}</td>
+                            <td>{{ time.pj }}</td><td>{{ time.v }}</td><td>{{ time.sg }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
