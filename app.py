@@ -13,7 +13,12 @@ USUARIOS_PERMITIDOS = {
     "Salsicha": "AVRZ123", "Teste": "teste", "Sauer": "admin123"
 }
 
-cache_dados = {"jogos": [], "artilheiros": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": False}
+cache_dados = {"jogos_arena": [], "jogos_futuros": [], "classificacao": [], "artilheiros": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": False}
+
+STAGE_ORDER = {
+    'GROUP_STAGE': 1, 'LAST_16': 2, 'QUARTER_FINALS': 3,
+    'SEMI_FINALS': 4, 'THIRD_PLACE': 5, 'FINAL': 6
+}
 
 def obter_dados_copa():
     agora = datetime.now(timezone.utc)
@@ -25,12 +30,23 @@ def obter_dados_copa():
     headers = { 'X-Auth-Token': os.environ.get('API_KEY') }
     
     try:
-        # 1. Puxando os Jogos (Fases, Escudos, Pênaltis)
+        # 1. Busca todos os Jogos
         res_jogos = requests.get("https://api.football-data.org/v4/competitions/WC/matches", headers=headers).json()
-        jogos_reais = []
-        tem_ao_vivo_agora = False
+        matches = res_jogos.get('matches', [])
         
-        for match in res_jogos.get('matches', []):
+        # Descobre qual é a fase atual do torneio
+        max_stage = 1
+        for m in matches:
+            if m.get('status') in ['IN_PLAY', 'PAUSED', 'FINISHED', 'AWARDED']:
+                stg = m.get('stage', 'GROUP_STAGE')
+                max_stage = max(max_stage, STAGE_ORDER.get(stg, 1))
+
+        jogos_arena = []
+        jogos_futuros = []
+        tem_ao_vivo_agora = False
+        limite_48h = agora + timedelta(hours=48)
+        
+        for match in matches:
             time_a = match.get('homeTeam', {}).get('shortName') or match.get('homeTeam', {}).get('name') or "A Definir"
             time_b = match.get('awayTeam', {}).get('shortName') or match.get('awayTeam', {}).get('name') or "A Definir"
             crest_a = match.get('homeTeam', {}).get('crest', '')
@@ -59,28 +75,56 @@ def obter_dados_copa():
                 status = "EM BREVE..."
                 
             dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            data_formatada = dt_obj.strftime('%d/%m %H:%M')
             
-            jogos_reais.append({
+            jogo_formatado = {
                 "id": match['id'], "time_a": time_a, "time_b": time_b, "crest_a": crest_a, "crest_b": crest_b,
                 "placar": placar, "status": status, "info_fase": info_fase, "timestamp": dt_obj.timestamp(),
-                "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
+                "data_str": data_formatada, "gols_a_real": str(gols_a) if gols_a is not None else "N/A",
                 "gols_b_real": str(gols_b) if gols_b is not None else "N/A"
-            })
+            }
+
+            stg_level = STAGE_ORDER.get(match.get('stage', 'GROUP_STAGE'), 1)
             
-        # Ordenação reversa (Mais atuais/futuros no topo, antigos embaixo)
-        jogos_reais.sort(key=lambda x: x['timestamp'], reverse=True)
+            # Lógica de Filtro Inteligente (Arena vs Futuros)
+            if status in ['AO VIVO', 'RESULTADOS']:
+                # Mostra o histórico só da fase atual e da imediatamente anterior
+                if stg_level >= max_stage - 1:
+                    jogos_arena.append(jogo_formatado)
+            else:
+                # Mostra jogos na arena apenas se acontecerem em até 48 horas
+                if dt_obj <= limite_48h:
+                    jogos_arena.append(jogo_formatado)
+                else:
+                    jogos_futuros.append(jogo_formatado)
+            
+        # Ordenação: Recentes no topo na Arena, cronológico na Agenda
+        jogos_arena.sort(key=lambda x: x['timestamp'], reverse=True)
+        jogos_futuros.sort(key=lambda x: x['timestamp'])
         
-        # 2. Puxando os Artilheiros (Estatísticas Globais)
+        # 2. Artilheiros
         res_art = requests.get("https://api.football-data.org/v4/competitions/WC/scorers", headers=headers).json()
         artilheiros = []
-        for s in res_art.get('scorers', [])[:5]: # Pega o Top 5
-            artilheiros.append({
-                "nome": s.get('player', {}).get('name'),
-                "time": s.get('team', {}).get('name'),
-                "gols": s.get('goals')
-            })
+        for s in res_art.get('scorers', [])[:5]:
+            artilheiros.append({ "nome": s.get('player', {}).get('name'), "time": s.get('team', {}).get('name'), "gols": s.get('goals') })
             
-        cache_dados.update({"jogos": jogos_reais, "artilheiros": artilheiros, "ultima_atualizacao": agora, "tem_jogo_ao_vivo": tem_ao_vivo_agora})
+        # 3. Classificação
+        res_stand = requests.get("https://api.football-data.org/v4/competitions/WC/standings", headers=headers).json()
+        classificacao = []
+        if 'standings' in res_stand:
+            for group in res_stand['standings']:
+                if group['type'] == 'TOTAL':
+                    classificacao.append({
+                        'grupo': group.get('group', '').replace('_', ' '),
+                        'times': [{
+                            'nome': t['team'].get('shortName') or t['team'].get('name'),
+                            'crest': t['team'].get('crest', ''),
+                            'pts': t['points'], 'pj': t['playedGames'],
+                            'v': t['won'], 'e': t['draw'], 'd': t['lost'], 'sg': t['goalDifference']
+                        } for t in group['table']]
+                    })
+
+        cache_dados.update({"jogos_arena": jogos_arena, "jogos_futuros": jogos_futuros, "classificacao": classificacao, "artilheiros": artilheiros, "ultima_atualizacao": agora, "tem_jogo_ao_vivo": tem_ao_vivo_agora})
         return cache_dados
     except Exception as e: 
         print(f"Erro API: {e}")
@@ -91,8 +135,7 @@ def get_db_connection(): return psycopg2.connect(os.environ['DATABASE_URL'])
 def criar_tabela():
     try:
         conn = get_db_connection(); cur = conn.cursor()
-        cur.execute('''CREATE TABLE IF NOT EXISTS palpites (id SERIAL PRIMARY KEY, usuario VARCHAR(50), jogo_id INT, gols_a VARCHAR(10), gols_b VARCHAR(10), amarelos VARCHAR(10), vermelhos VARCHAR(10), subs VARCHAR(10), acrescimo VARCHAR(10))''')
-        # Adicionando novas colunas (ignoraremos 'escanteios' no front-end a partir de agora)
+        cur.execute('''CREATE TABLE IF NOT EXISTS palpites (id SERIAL PRIMARY KEY, usuario VARCHAR(50), jogo_id INT, gols_a VARCHAR(10), gols_b VARCHAR(10), amarelos VARCHAR(50), vermelhos VARCHAR(50), subs VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), autor_gol VARCHAR(50))''')
         for col in ['amarelos', 'vermelhos', 'subs', 'acrescimo', 'penaltis', 'autor_gol']:
             try: cur.execute(f'ALTER TABLE palpites ADD COLUMN {col} VARCHAR(50)')
             except: conn.rollback()
@@ -110,7 +153,7 @@ def index():
     gasto = sum([1 for p in apostas for f in p if f and f.strip()]) * 0.50
     
     dados = obter_dados_copa()
-    jogos = dados["jogos"]
+    jogos = dados["jogos_arena"]
     artilheiros = dados["artilheiros"]
     
     for jogo in jogos:
@@ -121,6 +164,12 @@ def index():
             
     cur.close(); conn.close()
     return render_template('index.html', usuario=session['usuario'], jogos=jogos, artilheiros=artilheiros, gasto=f"{gasto:,.2f}".replace('.', ','))
+
+@app.route('/info')
+def info_torneio():
+    if 'usuario' not in session: return redirect(url_for('login'))
+    dados = obter_dados_copa()
+    return render_template('info.html', usuario=session['usuario'], classificacao=dados['classificacao'], jogos_futuros=dados['jogos_futuros'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -152,7 +201,8 @@ def apostar():
 def apostas_publicas():
     if 'usuario' not in session: return redirect(url_for('login'))
     dados = obter_dados_copa()
-    mapa_jogos = {j['id']: f"{j['time_a']} x {j['time_b']}" for j in dados["jogos"]}
+    todos_jogos = dados["jogos_arena"] + dados["jogos_futuros"]
+    mapa_jogos = {j['id']: f"{j['time_a']} x {j['time_b']}" for j in todos_jogos}
     
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute('SELECT usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, subs, acrescimo, penaltis, autor_gol FROM palpites ORDER BY jogo_id DESC, id DESC')
