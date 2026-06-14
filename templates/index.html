@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena | Bolão</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; }
+        .container { max-width: 900px; margin: auto; padding: 20px; box-sizing: border-box; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
+        .btn-sair { font-size: 0.5em; color: #ff4444; text-decoration: none; margin-left: 15px; border: 1px solid #ff4444; padding: 4px 8px; border-radius: 4px; vertical-align: middle; transition: 0.2s;}
+        .btn-sair:hover { background: #ff4444; color: #000; }
+        
+        .caixa-infos { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .btn-publico { background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.85em; text-transform: uppercase; border: none; }
+        .btn-secundario { background: #333; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.85em; text-transform: uppercase; border: 1px solid #555; }
+        .btn-perfil { background: #ffcc00; color: #000; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.85em; text-transform: uppercase; border: none; }
+        
+        .status-ao-vivo { color: #ff3333; font-weight: bold; font-size: 0.85em; letter-spacing: 1px;}
+        .status-encerrado { color: #ffcc00; font-weight: bold; font-size: 0.85em; letter-spacing: 1px;}
+        .status-em-breve { color: #ffffff; font-weight: bold; font-size: 0.85em; letter-spacing: 1px;}
+        
+        .jogo-row { background: #1e1e1e; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 5px solid #333; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position: relative; }
+        .fase-info { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between;}
+        
+        .confronto { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .times-box { display: flex; align-items: center; gap: 10px; font-size: 1.3em; font-weight: bold; color: #fff;}
+        .crest { width: 35px; height: 35px; object-fit: contain; }
+        .placar-box { font-size: 1.5em; color: #fff; font-weight: bold; background: #111; padding: 8px 18px; border-radius: 6px; text-align: center; border: 1px solid #333; }
+        
+        @keyframes piscar-alerta { 0% { border-left-color: #ffcc00; box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); } 50% { border-left-color: #333; box-shadow: none; } 100% { border-left-color: #ffcc00; box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); } }
+        .alerta-tempo { animation: piscar-alerta 1.5s infinite; }
+        .contador-vermelho { color: #ff3333; font-weight: bold; font-size: 0.8em; margin-top: 5px; display: block; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .btn-cazetv-small { background: rgba(255, 51, 51, 0.1); color: #ff4444; padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(255, 51, 51, 0.3); text-decoration: none; font-size: 0.75em; font-weight: bold; margin-top: 10px; display: inline-block; transition: 0.2s; }
+        
+        .btn-admin { background: #5a189a; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; cursor: pointer; margin-left: 5px;}
+        .dados-oficiais { background: rgba(0,255,136,0.05); border: 1px dashed rgba(0,255,136,0.3); padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 0.85em; color: #aaa;}
+
+        /* Modais */
+        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #00ff88; width: 90%; max-width: 420px; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .modal-box.admin { border-color: #5a189a; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(3px); }
+        .input-group { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; }
+        .input-group input { width: 90px; padding: 8px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; text-align: center; font-family: 'Montserrat', sans-serif;}
+        .input-group input[type=\"text\"] { width: 160px; text-align: left; }
+        .input-group input.admin-full { width: 100%; text-align: left; margin-top: 5px; }
+        
+        .caixa-turbo { background: rgba(255,204,0,0.1); border: 1px dashed #ffcc00; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 15px; color: #ffcc00; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        #btn-confirmar, .btn-admin-salvar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
+        .btn-admin-salvar { background: #5a189a; color: white; }
+        .msg-retorno { display: none; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; margin-top: 15px; }
+        .msg-sucesso { background: rgba(0,255,0,0.1); color: #00ff88; border: 1px solid #00ff88; }
+        .msg-erro { background: rgba(255,0,0,0.1); color: #ff4444; border: 1px solid #ff4444; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: flex-start; }
+            .caixa-infos { width: 100%; flex-direction: column; align-items: stretch; }
+            .caixa-infos a, .caixa-infos button { text-align: center; margin-bottom: 5px;}
+            .confronto { flex-direction: column; align-items: flex-start; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>⚽ ARENA <a href="{{ url_for('logout') }}" class="btn-sair">SAIR</a></h2>
+        <div class="caixa-infos">
+            <a href="{{ url_for('perfil') }}" class="btn-perfil">🎛️ MEU PERFIL</a>
+            <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">📊 APOSTAS</a>
+            <a href="{{ url_for('info_torneio') }}" class="btn-secundario">🏆 AGENDA</a>
+            {% if usuario == 'Teste' %}
+                <button onclick="forcarAtualizacaoAPI()" class="btn-admin" style="background: #20b2aa;">🔄 Atualizar API</button>
+                <button onclick="acionarManutencao()" class="btn-admin" style="background: #ff4444;">{% if manutencao %}🟢 ABRIR OFICINA{% else %}🔴 MANUTENÇÃO{% endif %}</button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if jogos|length == 0 %}
+        <div style="text-align: center; margin-top: 50px; background: #1e1e1e; padding: 40px; border-radius: 10px; border: 1px solid #333;">
+            <h3 style="color: #00ff88;">Pista Vazia...</h3>
+            <p style="color: #aaa;">Não há jogos pelas próximas 24 horas.</p>
+        </div>
+    {% else %}
+        {% for jogo in jogos %}
+        {% set adm = admin_data.get(jogo.id, {}) %}
+        <div class="jogo-row" data-time="{{ jogo.timestamp }}">
+            <div class="fase-info">
+                <span>{{ jogo.info_fase }} • {{ jogo.data_str }}</span>
+                {% if usuario == 'Teste' %}
+                <button class="btn-admin" onclick="abrirModalAdmin({{ jogo.id }}, '{{ adm.get('link', '') }}', '{{ adm.get('amarelos', '') }}', '{{ adm.get('vermelhos', '') }}', '{{ adm.get('acrescimo', '') }}', '{{ adm.get('penaltis', '') }}', '{{ adm.get('artilheiro', '') }}', event)">⚙️ Admin</button>
+                {% endif %}
+            </div>
+            
+            <div class="confronto" onclick="abrirModal({{ jogo.id }}, '{{ jogo.time_a }}', '{{ jogo.time_b }}', '{{ jogo.status }}', {{ jogo.timestamp }})">
+                <div>
+                    <div class="times-box">
+                        {% if jogo.crest_a %}<img src="{{ jogo.crest_a }}" class="crest">{% endif %}
+                        {{ jogo.time_a }} <span style="color:#555; font-size: 0.8em;">x</span> {{ jogo.time_b }}
+                        {% if jogo.crest_b %}<img src="{{ jogo.crest_b }}" class="crest">{% endif %}
+                    </div>
+                    <div class="{% if jogo.status == 'AO VIVO' %}status-ao-vivo{% elif jogo.status == 'ENCERRADO' %}status-encerrado{% else %}status-em-breve{% endif %}" style="margin-top: 5px;">
+                        {% if jogo.status == 'AO VIVO' %}🔴 {% elif jogo.status == 'ENCERRADO' %}🟡 {% else %}⚪ {% endif %}{{ jogo.status }}
+                        <span class="countdown-text contador-vermelho" style="display:none;"></span>
+                    </div>
+                </div>
+                
+                <div class="area-placar">
+                    <div class="placar-box">{{ jogo.placar }}</div>
+                    {% if jogo.status == 'ENCERRADO' and jogo.vencedores_placar|length > 0 %}
+                        <div style="color: #00ff88; font-size: 0.8em; font-weight: bold; margin-top: 5px; text-align: center;">
+                            🥇 {{ jogo.vencedores_placar|join(', ') }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if jogo.status == 'AO VIVO' %}
+                {% set link_youtube = adm.get('link') or "https://www.youtube.com/results?search_query=Ao+vivo+" ~ jogo.time_a ~ "+x+" ~ jogo.time_b ~ "+CazeTV" %}
+                <a href="{{ link_youtube }}" target="_blank" class="btn-cazetv-small">▶ Assista agora</a>
+            {% endif %}
+
+            {% if adm.get('amarelos') or adm.get('artilheiro') %}
+                <div class="dados-oficiais">
+                    <b>✅ DADOS OFICIAIS:</b> 
+                    🟨 {{ adm.get('amarelos', '-') }} | 🟥 {{ adm.get('vermelhos', '-') }} | ⏱️ {{ adm.get('acrescimo', '-') }}' | ⚽ Art: {{ adm.get('artilheiro', '-') }} | Pên: {{ adm.get('penaltis', '-') }}
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<div class="overlay" id="overlay" onclick="fecharModais()"></div>
+
+<div id="modal-aposta" class="modal-box">
+    <h3 style="color: white; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;" id="modal-titulo">Jogo</h3>
+    <p style="color: #888; font-size: 0.8em; margin-bottom: 15px;">Permitido números (0-99). Artilheiro max 20 caracteres.</p>
+    
+    <label class="caixa-turbo">
+        <input type="checkbox" id="turbo_boost" style="transform: scale(1.5);"> 🚀 ATIVAR BOOSTER (1 por dia)
+    </label>
+
+    <div id="form-apostas">
+        <input type="hidden" id="jogo_id">
+        <div class="input-group"><label>Gols (<span id="label-time-a" style="color:#00ff88;">A</span>):</label><input type="number" class="bet-input" id="gols_a" min="0" max="99" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Gols (<span id="label-time-b" style="color:#00ff88;">B</span>):</label><input type="number" class="bet-input" id="gols_b" min="0" max="99" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Amarelos (Total):</label><input type="number" class="bet-input" id="amarelos" min="0" max="99" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Vermelhos (Total):</label><input type="number" class="bet-input" id="vermelhos" min="0" max="99" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Acréscimos (Min):</label><input type="number" class="bet-input" id="acrescimo" min="0" max="99" oninput="calcularTotal()"></div>
+        <div class="input-group"><label>Artilheiro (Nome):</label><input type="text" class="bet-input" id="artilheiro" maxlength="20" placeholder="Nome" oninput="calcularTotal()"></div>
+
+        <button id="btn-confirmar" onclick="enviarAposta()" disabled>Selecione um palpite...</button>
+        <div id="msg-retorno" class="msg-retorno"></div>
+    </div>
+</div>
+
+<div id="modal-admin" class="modal-box admin">
+    <h3 style="color: #c77dff; margin-top: 0; border-bottom: 1px solid #5a189a; padding-bottom: 10px;">⚙️ Painel Oficial Admin</h3>
+    <p style="color: #888; font-size: 0.8em; margin-bottom: 20px;">Insira os dados finais do jogo ou cole o Link da Transmissão.</p>
+    
+    <input type="hidden" id="admin_jogo_id">
+    <div style="margin-bottom: 15px;">
+        <label style="font-size: 0.85em; font-weight: bold; color: #fff;">Link da Transmissão (Manual):</label>
+        <input type="text" id="admin_link" class="input-group admin-full" placeholder="https://youtube.com/..." style="width: 100%; box-sizing: border-box; padding: 10px; background: #222; border: 1px solid #5a189a; color: white;">
+    </div>
+    <div class="input-group"><label>Cartões Amarelos Oficiais:</label><input type="text" id="admin_amarelos"></div>
+    <div class="input-group"><label>Cartões Vermelhos Oficiais:</label><input type="text" id="admin_vermelhos"></div>
+    <div class="input-group"><label>Acréscimos Oficiais:</label><input type="text" id="admin_acrescimo"></div>
+    <div class="input-group"><label>Placar Pênaltis Oficial:</label><input type="text" id="admin_penaltis" placeholder="Ex: 4x3"></div>
+    <div class="input-group"><label>Artilheiro Oficial:</label><input type="text" id="admin_artilheiro"></div>
+
+    <button class="btn-admin-salvar" id="btn-admin-salvar" onclick="salvarAdminJogo()">Salvar Dados Oficiais</button>
+    <div id="msg-admin-retorno" class="msg-retorno"></div>
+</div>
+
+<script>
+    // RELÓGIO DE CHECK ENGINE
+    setInterval(() => {
+        let agora = new Date().getTime() / 1000;
+        document.querySelectorAll('.jogo-row').forEach(row => {
+            let timestampJogo = parseFloat(row.dataset.time);
+            let diferenca = timestampJogo - agora;
+            let countEl = row.querySelector('.countdown-text');
+            if (diferenca < 7200 && diferenca > -900) {
+                row.classList.add('alerta-tempo');
+                countEl.style.display = 'block';
+                if (diferenca > 0) {
+                    countEl.innerText = `⏳ Faltam ${Math.floor(diferenca / 60)} minutos!`;
+                } else {
+                    countEl.innerText = `🚨 BOLA ROLANDO (Tolerância esgotando!)`;
+                }
+            } else {
+                row.classList.remove('alerta-tempo');
+                countEl.style.display = 'none';
+            }
+        });
+    }, 1000);
+
+    // --- AUTO-REFRESH INTELIGENTE GRATUITO ---
+    setInterval(() => {
+        // Se encontrar algum jogo "AO VIVO" rodando na página, recarrega a cada 60 segundos
+        if (document.querySelector('.status-ao-vivo')) {
+            window.location.reload();
+        }
+    }, 60000);
+
+    setInterval(() => {
+        // Se NÃO tiver jogo ao vivo, recarrega a cada 5 minutos de forma silenciosa para atualizar status
+        if (!document.querySelector('.status-ao-vivo')) {
+            window.location.reload();
+        }
+    }, 300000);
+
+    function fecharModais() {
+        document.getElementById('modal-aposta').style.display = 'none';
+        document.getElementById('modal-admin').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function abrirModal(id, timeA, timeB, status, timestamp) {
+        let agora = new Date().getTime() / 1000;
+        if (agora > timestamp + 900) { alert('Apostas Encerradas! Bola rolando a mais de 15 minutos.'); return; }
+        if (status === 'ENCERRADO') { alert('Jogo encerrado. Acompanhe os resultados oficiais.'); return; }
+        
+        document.querySelectorAll('.bet-input').forEach(i => i.value = '');
+        document.getElementById('turbo_boost').checked = false;
+        document.getElementById('msg-retorno').style.display = 'none';
+        calcularTotal(); 
+        document.getElementById('jogo_id').value = id;
+        document.getElementById('modal-titulo').innerText = `${timeA} x ${timeB}`;
+        document.getElementById('label-time-a').innerText = timeA;
+        document.getElementById('label-time-b').innerText = timeB;
+        document.getElementById('modal-aposta').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function calcularTotal() {
+        let c = 0;
+        if (document.getElementById('gols_a').value !== '' || document.getElementById('gols_b').value !== '') c++;
+        ['amarelos', 'vermelhos', 'acrescimo', 'artilheiro'].forEach(id => { if(document.getElementById(id).value !== '') c++; });
+        const btn = document.getElementById('btn-confirmar');
+        if (c > 0) { btn.innerText = `Confirmar Aposta(s)`; btn.disabled = false; }
+        else { btn.innerText = `SELECIONE UM PALPITE`; btn.disabled = true; }
+    }
+
+    function enviarAposta() {
+        let ga = document.getElementById('gols_a').value;
+        let gb = document.getElementById('gols_b').value;
+        
+        let confMsg = "Você está prestes a enviar a sua aposta.\n\n";
+        if (ga !== '' && gb !== '') confMsg += `⚽ Placar: ${ga} x ${gb}\n`;
+        if (document.getElementById('turbo_boost').checked) confMsg += `🚀 USANDO SEU BOOSTER DIÁRIO!\n`;
+        confMsg += "\nDeseja carimbar e confirmar?";
+        if (!confirm(confMsg)) return; 
+
+        const btn = document.getElementById('btn-confirmar');
+        btn.innerText = "Processando..."; btn.disabled = true;
+        
+        fetch('/apostar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jogo_id: document.getElementById('jogo_id').value, gols_a: ga, gols_b: gb,
+                amarelos: document.getElementById('amarelos').value, vermelhos: document.getElementById('vermelhos').value,
+                acrescimo: document.getElementById('acrescimo').value, artilheiro: document.getElementById('artilheiro').value,
+                turbo: document.getElementById('turbo_boost').checked
+            })
+        }).then(r => r.json()).then(data => {
+            const m = document.getElementById('msg-retorno');
+            btn.style.display = 'none'; m.style.display = 'block';
+            if (data.sucesso) { m.className = 'msg-sucesso'; m.innerText = '✅ Aposta confirmada!'; setTimeout(() => { window.location.reload(); }, 1500); } 
+            else { m.className = 'msg-erro'; m.innerText = '❌ ' + data.erro; setTimeout(() => { fecharModais(); }, 3500); }
+        }).catch(err => { alert("Erro de conexão."); fecharModais(); });
+    }
+
+    function forcarAtualizacaoAPI() {
+        if(!confirm("Tem certeza que quer forçar a atualização imediata da API de jogos?")) return;
+        fetch('/admin_forcar_update', { method: 'POST' }).then(r => r.json()).then(d => {
+            if(d.sucesso) { alert("API Atualizada com sucesso!"); window.location.reload(); }
+        });
+    }
+
+    function acionarManutencao() {
+        fetch('/admin_toggle_manutencao', { method: 'POST' }).then(r => r.json()).then(d => { 
+            if(d.sucesso) window.location.reload(); 
+        });
+    }
+
+    function abrirModalAdmin(id, link, amarelos, vermelhos, acrescimo, penaltis, artilheiro, e) {
+        if(e) e.stopPropagation(); 
+        document.getElementById('admin_jogo_id').value = id;
+        document.getElementById('admin_link').value = link !== 'None' ? link : '';
+        document.getElementById('admin_amarelos').value = amarelos !== 'None' ? amarelos : '';
+        document.getElementById('admin_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
+        document.getElementById('admin_acrescimo').value = acrescimo !== 'None' ? acrescimo : '';
+        document.getElementById('admin_penaltis').value = penaltis !== 'None' ? penaltis : '';
+        document.getElementById('admin_artilheiro').value = artilheiro !== 'None' ? artilheiro : '';
+        
+        document.getElementById('msg-admin-retorno').style.display = 'none';
+        document.getElementById('btn-admin-salvar').style.display = 'block';
+        document.getElementById('modal-admin').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function salvarAdminJogo() {
+        const btn = document.getElementById('btn-admin-salvar');
+        btn.innerText = "Salvando..."; btn.disabled = true;
+        fetch('/admin_salvar_jogo', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jogo_id: document.getElementById('admin_jogo_id').value, link_stream: document.getElementById('admin_link').value,
+                amarelos: document.getElementById('admin_amarelos').value, vermelhos: document.getElementById('admin_vermelhos').value,
+                acrescimo: document.getElementById('admin_acrescimo').value, penaltis: document.getElementById('admin_penaltis').value, artilheiro: document.getElementById('admin_artilheiro').value
+            })
+        }).then(r => r.json()).then(data => {
+            const m = document.getElementById('msg-admin-retorno');
+            btn.style.display = 'none'; m.style.display = 'block';
+            if (data.sucesso) { m.className = 'msg-sucesso'; m.innerText = '✅ Salvo!'; setTimeout(() => { window.location.reload(); }, 1500); } 
+            else { m.className = 'msg-erro'; m.innerText = '❌ ' + data.erro; setTimeout(() => { fecharModais(); }, 3500); }
+        }).catch(err => { alert("Erro de conexão."); fecharModais(); });
+    }
+</script>
+</body>
+</html>

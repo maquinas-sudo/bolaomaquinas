@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apostas Públicas | Bolão</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;}
+        .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
+        .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #444; transition: 0.2s;}
+        .btn-sair { font-size: 0.5em; color: #ff4444; text-decoration: none; margin-left: 15px; border: 1px solid #ff4444; padding: 4px 8px; border-radius: 4px; vertical-align: middle;}
+        
+        .card-jogo { background: #1a1a1a; border-radius: 8px; margin-bottom: 30px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .header-jogo { background: #222; padding: 15px 20px; font-size: 1.2em; font-weight: bold; color: #00ff88; border-bottom: 2px solid #333; }
+        
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #2a2a2a; }
+        th { background-color: #151515; color: #888; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
+        tr:hover { background-color: #222; }
+        
+        .user-highlight { font-weight: bold; color: #fff; text-align: left; }
+        .placar { font-size: 1.2em; font-weight: bold; color: #00ff88; background: rgba(0, 255, 136, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 255, 136, 0.2); }
+        .dado-vazio { color: #555; }
+        
+        .btn-editar { background: transparent; border: 1px solid #5a189a; color: #c77dff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold;}
+        
+        /* Modal Edição */
+        .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #5a189a; width: 90%; max-width: 420px; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(3px); }
+        .input-group { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; }
+        .input-group input { width: 90px; padding: 8px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; text-align: center;}
+        .input-group input[type="text"] { width: 160px; text-align: left; }
+        
+        .btn-admin-salvar { width: 100%; padding: 15px; background: #5a189a; color: white; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
+        .msg-retorno { display: none; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; margin-top: 15px; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; align-items: flex-start; }
+            .btn-voltar { width: 100%; text-align: center; box-sizing: border-box; margin-top: 10px; }
+            th, td { padding: 8px; font-size: 0.9em; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>📊 PAINEL DE APOSTAS <a href="{{ url_for('logout') }}" class="btn-sair">SAIR</a></h2>
+        <a href="{{ url_for('index') }}" class="btn-voltar">⬅ VOLTAR PARA A ARENA</a>
+    </div>
+
+    {% if apostas_agrupadas|length == 0 %}
+        <div style="text-align: center; padding: 50px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;">
+            <h3 style="color: #00ff88;">A pista está vazia...</h3>
+        </div>
+    {% else %}
+        {% for nome_jogo, palpites in apostas_agrupadas.items() %}
+        <div class="card-jogo">
+            <div class="header-jogo">⚽ {{ nome_jogo }}</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Jogador</th>
+                            <th>Placar</th>
+                            <th>Amarelos</th>
+                            <th>Vermelhos</th>
+                            <th>Acréscimos</th>
+                            <th>Artilheiro</th>
+                            {% if usuario == 'Teste' %}<th>Moderar</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in palpites %}
+                        <tr>
+                            <td class="user-highlight">{{ p.usuario }}</td>
+                            <td>
+                                {% if p.gols_a and p.gols_b %}
+                                    <span class="placar">{{ p.gols_a }} x {{ p.gols_b }}</span>
+                                    {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
+                                {% else %}<span class="dado-vazio">-</span>{% endif %}
+                            </td>
+                            <td>{% if p.amarelos %}{{ p.amarelos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.vermelhos %}{{ p.vermelhos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.acrescimo %}{{ p.acrescimo }}'{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.artilheiro %}{{ p.artilheiro }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            
+                            {% if usuario == 'Teste' %}
+                            <td>
+                                <button class="btn-editar" onclick="abrirModalEdicao({{ p.aposta_id }}, '{{ p.usuario }}', '{{ p.gols_a }}', '{{ p.gols_b }}', '{{ p.amarelos }}', '{{ p.vermelhos }}', '{{ p.acrescimo }}', '{{ p.penaltis }}', '{{ p.artilheiro }}')">✏️</button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<div class="overlay" id="overlay" onclick="fecharModal()"></div>
+<div id="modal-editar" class="modal-box">
+    <h3 style="color: #c77dff; margin-top: 0; border-bottom: 1px solid #5a189a; padding-bottom: 10px;">✏️ Moderar Aposta</h3>
+    <p style="color: #888; font-size: 0.8em; margin-bottom: 20px;">Edite os valores preenchidos por <span id="mod_user" style="color:white; font-weight:bold;"></span>.</p>
+    
+    <input type="hidden" id="edit_id">
+    <div class="input-group"><label>Gols A:</label><input type="text" id="edit_gols_a"></div>
+    <div class="input-group"><label>Gols B:</label><input type="text" id="edit_gols_b"></div>
+    <div class="input-group"><label>Amarelos:</label><input type="text" id="edit_amarelos"></div>
+    <div class="input-group"><label>Vermelhos:</label><input type="text" id="edit_vermelhos"></div>
+    <div class="input-group"><label>Acréscimos:</label><input type="text" id="edit_acrescimo"></div>
+    <div class="input-group"><label>Pênaltis:</label><input type="text" id="edit_penaltis"></div>
+    <div class="input-group"><label>Artilheiro:</label><input type="text" id="edit_artilheiro"></div>
+
+    <button class="btn-admin-salvar" id="btn-edit-salvar" onclick="salvarEdicaoAposta()">Salvar Correção</button>
+    <div id="msg-edit-retorno" class="msg-retorno"></div>
+</div>
+
+<script>
+    function fecharModal() {
+        document.getElementById('modal-editar').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function abrirModalEdicao(id, user, golsA, golsB, amarelos, vermelhos, acrescimo, penaltis, artilheiro) {
+        document.getElementById('edit_id').value = id;
+        document.getElementById('mod_user').innerText = user;
+        document.getElementById('edit_gols_a').value = golsA !== 'None' ? golsA : '';
+        document.getElementById('edit_gols_b').value = golsB !== 'None' ? golsB : '';
+        document.getElementById('edit_amarelos').value = amarelos !== 'None' ? amarelos : '';
+        document.getElementById('edit_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
+        document.getElementById('edit_acrescimo').value = acrescimo !== 'None' ? acrescimo : '';
+        document.getElementById('edit_penaltis').value = penaltis !== 'None' ? penaltis : '';
+        document.getElementById('edit_artilheiro').value = artilheiro !== 'None' ? artilheiro : '';
+        
+        document.getElementById('msg-edit-retorno').style.display = 'none';
+        document.getElementById('btn-edit-salvar').style.display = 'block';
+
+        document.getElementById('modal-editar').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function salvarEdicaoAposta() {
+        const btn = document.getElementById('btn-edit-salvar');
+        btn.innerText = "Salvando..."; btn.disabled = true;
+        fetch('/admin_editar_aposta', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                aposta_id: document.getElementById('edit_id').value,
+                gols_a: document.getElementById('edit_gols_a').value,
+                gols_b: document.getElementById('edit_gols_b').value,
+                amarelos: document.getElementById('edit_amarelos').value,
+                vermelhos: document.getElementById('edit_vermelhos').value,
+                acrescimo: document.getElementById('edit_acrescimo').value,
+                penaltis: document.getElementById('edit_penaltis').value,
+                artilheiro: document.getElementById('edit_artilheiro').value
+            })
+        }).then(r => r.json()).then(data => {
+            const m = document.getElementById('msg-edit-retorno');
+            btn.style.display = 'none'; m.style.display = 'block';
+            if (data.sucesso) { m.className = 'msg-sucesso'; m.innerText = '✅ Aposta alterada!'; setTimeout(() => { window.location.reload(); }, 1500); } 
+            else { m.className = 'msg-erro'; m.innerText = '❌ ' + data.erro; setTimeout(() => { fecharModal(); }, 3500); }
+        }).catch(err => { alert("Erro de conexão."); fecharModal(); });
+    }
+</script>
+</body>
+</html>
