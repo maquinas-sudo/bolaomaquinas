@@ -213,18 +213,6 @@ def apostas_publicas():
     cur.close(); conn.close()
     return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas)
 
-@app.route('/zerar_banco_oficina_secreta')
-def zerar_banco():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        # Apaga tudo e reinicia a contagem do ID do zero
-        cur.execute("TRUNCATE TABLE palpites RESTART IDENTITY;")
-        conn.commit()
-        cur.close()
-        conn.close()
-        return "<h1 style='color: green; text-align: center; margin-top: 50px;'>✅ Banco de dados zerado com sucesso! A pista está limpa.</h1>"
-    except Exception as e:
-        return f"Erro ao limpar: {e}"
+
         
 if __name__ == '__main__': app.run()
