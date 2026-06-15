@@ -20,8 +20,9 @@ USUARIOS_PERMITIDOS = {
     "Teste": "teste00",          
     "Enzo": "enzoflamengo123",    
     "Natan Sauer": "ns1234",      
-    "Pedro Sauer": "ps5678"       
-}
+    "Pedro Sauer": "ps5678",
+    "Juliao": "carloscu2026"
+    }
 
 cache_dados = {"jogos_arena": [], "jogos_futuros": [], "classificacao": [], "artilheiros": [], "ultima_atualizacao": None, "tem_jogo_ao_vivo": False}
 config_app = {"manutencao": False}
