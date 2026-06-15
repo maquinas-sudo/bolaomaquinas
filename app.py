@@ -122,7 +122,6 @@ def obter_dados_copa():
 
 def get_db_connection(): return psycopg2.connect(os.environ['DATABASE_URL'])
 
-# --- NOVA ESTRUTURA BLINDADA PARA O BANCO DE DADOS ---
 def criar_tabela():
     try:
         conn = get_db_connection()
@@ -131,7 +130,6 @@ def criar_tabela():
         cur.execute('''CREATE TABLE IF NOT EXISTS palpites (id SERIAL PRIMARY KEY, usuario VARCHAR(50), jogo_id INT, gols_a VARCHAR(10), gols_b VARCHAR(10), amarelos VARCHAR(50), vermelhos VARCHAR(50), subs VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), autor_gol VARCHAR(50))''')
         conn.commit()
 
-        # Função interna de isolamento para adicionar colunas sem quebrar a transação geral
         def add_col(table, col, type_def):
             try:
                 cur.execute(f'ALTER TABLE {table} ADD COLUMN {col} {type_def}')
@@ -302,10 +300,10 @@ def index():
         jogo['ja_palpitado'] = jogo['id'] in jogos_palpitados
         jogo['bingo_vencedores'] = bingos.get(jogo['id'], [])
     
-    # Formatação limpa do dinheiro para padrão BR (Ex: R$ 1.250,50)
     gasto_str = f"{total_pool:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        
-    return render_template('index.html', usuario=user_logado, jogos=jogos, admin_data=admin_data, gasto=gasto_str, usuarios_lista=USUARIOS_PERMITIDOS.keys())
+    
+    # REPARE AQUI: Devolvi a variável de manutenção para liberar seu poder de Admin!
+    return render_template('index.html', usuario=user_logado, jogos=jogos, admin_data=admin_data, gasto=gasto_str, usuarios_lista=USUARIOS_PERMITIDOS.keys(), manutencao=config_app["manutencao"])
 
 @app.route('/perfil')
 def perfil():
@@ -333,7 +331,8 @@ def info_torneio():
     if 'usuario' not in session: return redirect(url_for('login'))
     
     stats, _, _ = processar_ranking_e_financas()
-    ranking = sorted([{"nome": u, "pontos": stats[u]["pontos"], "cravadas": stats[u]["cravadas"], "gasto": stats[u]["gasto_valido"]} for u in stats], key=lambda x: x['pontos'], reverse=True)
+    # REPARE AQUI: Cortei a lista para mostrar SOMENTE OS TOP 3
+    ranking = sorted([{"nome": u, "pontos": stats[u]["pontos"], "cravadas": stats[u]["cravadas"], "gasto": stats[u]["gasto_valido"]} for u in stats], key=lambda x: x['pontos'], reverse=True)[:3]
     
     dados = obter_dados_copa()
     return render_template('info.html', usuario=session['usuario'], ranking=ranking, classificacao=dados['classificacao'], jogos_futuros=dados['jogos_futuros'], artilheiros=dados['artilheiros'])
