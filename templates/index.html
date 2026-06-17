@@ -120,7 +120,7 @@
 <!-- LETREIRO ANIMADO EMUMAQUINAS -->
 <div class="ticker-wrap">
     <div class="ticker">
-        🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador. Acelere a fundo na nostalgia! 🏎️ 👾
+        Ei, você,                🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador. Acelere fundo na nostalgia! 🏎️ 👾
     </div>
 </div>
 
@@ -298,7 +298,7 @@
 <!-- Modal Anúncios Zueira -->
 <div class="overlay" id="overlay-anuncio" onclick="fecharAnuncio()"></div>
 <div id="modal-anuncio" class="modal-box" style="border-color: #ff4444; text-align: center; background: #111;">
-    <h2 style="color: #ffcc00; font-size: 1.8em; margin-top: 0;">🚨 ATENÇÃO PILOTO!</h2>
+    <h2 style="color: #ffcc00; font-size: 1.8em; margin-top: 0;">🚨 ATENÇÃO!</h2>
     <p style="color: white; font-size: 1.1em; line-height: 1.5;" id="texto-anuncio"></p>
     <button class="btn-admin-salvar" style="background: #ffcc00; color: #000; font-weight: 900;" onclick="fecharAnuncio()">PULAR ANÚNCIO ⏭️</button>
 </div>
@@ -307,8 +307,8 @@
 <div class="overlay" id="overlay-yt" onclick="fecharAnuncioYT()" style="z-index: 2499;"></div>
 <div id="modal-yt" class="modal-yt">
     <button class="btn-fechar-yt" onclick="fecharAnuncioYT()">✖</button>
-    <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🔥 Conheça os Projetos!</h3>
-    <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Dicas de mecânica, adaptações e muita resenha na garagem. Inscreva-se!</p>
+    <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🔥 Assista Já!</h3>
+    <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Mecânica, humor e carro velho na garagem. Inscreva-se!</p>
     
     <a href="https://www.youtube.com/@canaldomaquinas/videos" target="_blank" onclick="fecharAnuncioYT()">
         <img src="{{ url_for('static', filename='banner_youtube.jpg') }}" alt="Canal do Máquinas" class="img-ad-yt">
@@ -346,7 +346,7 @@
                 if (diferenca > 0) {
                     countEl.innerText = `⏳ Faltam ${Math.floor(diferenca / 60)} minutos!`;
                 } else if (statusText.classList.contains('status-ao-vivo')) {
-                    countEl.innerText = `🚨 BOLA ROLANDO (Tolerância esgotando!)`;
+                    countEl.innerText = `🚨 BOLA ROLANDO (Tempo esgotando!)`;
                 } else {
                     countEl.style.display = 'none';
                 }
@@ -510,8 +510,8 @@
     window.onload = function() {
         mostrarAnuncioSurpresa(); // 15% de chance de mostrar piada logo ao abrir
         
-        // Ativa o pop-up agressivo do YouTube a cada exatos 2 minutos (120.000 ms)
-        setInterval(mostrarAnuncioYT, 120000); 
+        // Ativa o pop-up agressivo do YouTube a cada  (125.000 ms)
+        setInterval(mostrarAnuncioYT, 125000); 
     };
 </script>
 </body>
