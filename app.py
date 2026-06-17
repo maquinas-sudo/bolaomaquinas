@@ -5,7 +5,8 @@ from flask import Flask, render_template, request, session, redirect, url_for, j
 from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
-app.secret_key = 'chave_secreta_super_segura'
+# Chave alterada para forçar o logout de quem estava com o ecrã antigo em cache
+app.secret_key = 'arena_maquinas_2026_super_blindada'
 
 # --- GESTÃO FÁCIL DE USUÁRIOS E SENHAS ---
 USUARIOS_PERMITIDOS = {
@@ -182,6 +183,7 @@ def processar_ranking_e_financas():
     usuarios_stats = {u: {"pontos": 0, "cravadas": 0, "vencedores": 0, "gasto_valido": 0.0, "total_palpites_validos": 0, "maior_erro": 0, "artilheiros_certos": 0, "historico_grafico": []} for u in USUARIOS_PERMITIDOS}
     total_pool_grupo = 0.0
     bingos_jogos = {} 
+    na_trave_jogos = {} 
     
     for j_id, palpites in palpites_por_jogo.items():
         jogo = todos_jogos.get(j_id)
@@ -234,12 +236,22 @@ def processar_ranking_e_financas():
                 
                 if ga and gb and str(ga)!='None' and str(gb)!='None':
                     ga_a, gb_a = int(ga), int(gb)
-                    if ga_a == ga_r and gb_a == gb_r:
-                        pts_ganhos += 5; usuarios_stats[user]['cravadas'] += 1
-                    elif (ga_r > gb_r and ga_a > gb_a) or (ga_r < gb_r and ga_a < gb_a) or (ga_r == gb_r and ga_a == gb_a):
-                        pts_ganhos += 2; usuarios_stats[user]['vencedores'] += 1
-                    else: is_bingo = False
+                    acertou_a = (ga_a == ga_r)
+                    acertou_b = (gb_a == gb_r)
                     
+                    if acertou_a and acertou_b:
+                        pts_ganhos += 5; usuarios_stats[user]['cravadas'] += 1
+                    elif acertou_a or acertou_b:
+                        pts_ganhos += 1 
+                        na_trave_jogos.setdefault(j_id, []).append(user)
+                        is_bingo = False
+                        if (ga_r > gb_r and ga_a > gb_a) or (ga_r < gb_r and ga_a < gb_a) or (ga_r == gb_r and ga_a == gb_a):
+                            pts_ganhos += 2; usuarios_stats[user]['vencedores'] += 1
+                    else:
+                        is_bingo = False
+                        if (ga_r > gb_r and ga_a > gb_a) or (ga_r < gb_r and ga_a < gb_a) or (ga_r == gb_r and ga_a == gb_a):
+                            pts_ganhos += 2; usuarios_stats[user]['vencedores'] += 1
+                        
                     erro = abs(ga_r - ga_a) + abs(gb_r - gb_a)
                     if erro > usuarios_stats[user]['maior_erro']: usuarios_stats[user]['maior_erro'] = erro
                 else: is_bingo = False
@@ -278,14 +290,14 @@ def processar_ranking_e_financas():
                         usuarios_stats[u]['total_palpites_validos'] += 1
                         total_pool_grupo += 0.50
 
-    return usuarios_stats, total_pool_grupo, bingos_jogos
+    return usuarios_stats, total_pool_grupo, bingos_jogos, na_trave_jogos
 
 @app.route('/')
 def index():
     if 'usuario' not in session: return redirect(url_for('login'))
     user_logado = session['usuario']
     
-    stats, total_pool, bingos = processar_ranking_e_financas()
+    stats, total_pool, bingos, na_trave = processar_ranking_e_financas()
     dados = obter_dados_copa()
     jogos = dados["jogos_arena"]
     
@@ -300,10 +312,10 @@ def index():
     for jogo in jogos:
         jogo['ja_palpitado'] = jogo['id'] in jogos_palpitados
         jogo['bingo_vencedores'] = bingos.get(jogo['id'], [])
+        jogo['na_trave_vencedores'] = na_trave.get(jogo['id'], [])
     
     gasto_str = f"{total_pool:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     
-    # REPARE AQUI: Devolvi a variável de manutenção para liberar seu poder de Admin!
     return render_template('index.html', usuario=user_logado, jogos=jogos, admin_data=admin_data, gasto=gasto_str, usuarios_lista=USUARIOS_PERMITIDOS.keys(), manutencao=config_app["manutencao"])
 
 @app.route('/perfil')
@@ -311,7 +323,7 @@ def perfil():
     if 'usuario' not in session: return redirect(url_for('login'))
     user = session['usuario']
     
-    stats, _, _ = processar_ranking_e_financas()
+    stats, _, _, _ = processar_ranking_e_financas()
     user_stats = stats.get(user, {"pontos": 0, "cravadas": 0, "vencedores": 0, "gasto_valido": 0.0, "total_palpites_validos": 0, "maior_erro": 0, "artilheiros_certos": 0, "historico_grafico": []})
     
     total_validos = user_stats['total_palpites_validos']
@@ -331,8 +343,7 @@ def perfil():
 def info_torneio():
     if 'usuario' not in session: return redirect(url_for('login'))
     
-    stats, _, _ = processar_ranking_e_financas()
-    # REPARE AQUI: Cortei a lista para mostrar SOMENTE OS TOP 3
+    stats, _, _, _ = processar_ranking_e_financas()
     ranking = sorted([{"nome": u, "pontos": stats[u]["pontos"], "cravadas": stats[u]["cravadas"], "gasto": stats[u]["gasto_valido"]} for u in stats], key=lambda x: x['pontos'], reverse=True)[:3]
     
     dados = obter_dados_copa()
@@ -453,12 +464,24 @@ def apostas_publicas():
         nome_jogo = mapa_jogos.get(id_jogo, f"Jogo #{id_jogo}")
         if nome_jogo not in apostas_agrupadas: apostas_agrupadas[nome_jogo] = []
         apostas_agrupadas[nome_jogo].append({
-            'aposta_id': r[0], 'usuario': r[1], 'gols_a': r[3], 'gols_b': r[4],
+            'aposta_id': r[0], 'usuario': r[1], 'jogo_id': r[2], 'gols_a': r[3], 'gols_b': r[4],
             'amarelos': r[5], 'vermelhos': r[6], 'acrescimo': r[7], 'penaltis': r[8], 'artilheiro': r[9], 'turbo': r[10]
         })
         
+    cur.execute("SELECT jogo_id, amarelos, vermelhos, acrescimo, penaltis, artilheiro FROM jogos_admin")
+    admin_data = {r[0]: {'amarelos': r[1], 'vermelhos': r[2], 'acrescimo': r[3], 'penaltis': r[4], 'artilheiro': r[5]} for r in cur.fetchall()}
     cur.close(); conn.close()
-    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas, usuario=session['usuario'])
+
+    resultados_oficiais = {}
+    for j in todos_jogos:
+        adm = admin_data.get(j['id'], {})
+        resultados_oficiais[j['id']] = {
+            'gols_a': str(j.get('gols_a_real', 'N/A')), 'gols_b': str(j.get('gols_b_real', 'N/A')),
+            'amarelos': str(adm.get('amarelos', '')), 'vermelhos': str(adm.get('vermelhos', '')),
+            'acrescimo': str(adm.get('acrescimo', '')), 'penaltis': str(adm.get('penaltis', '')), 'artilheiro': str(adm.get('artilheiro', ''))
+        }
+
+    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas, resultados_oficiais=resultados_oficiais, usuario=session['usuario'])
 
 @app.route('/zerar_banco_oficina_secreta')
 def zerar_banco():
