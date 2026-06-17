@@ -22,7 +22,6 @@
         th { background-color: #151515; color: #888; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
         tr:hover { background-color: #222; }
         
-        /* O Bingo Lendário */
         tr.linha-bingo { background-color: rgba(255, 204, 0, 0.1); border-left: 5px solid #ffcc00; }
         tr.linha-bingo:hover { background-color: rgba(255, 204, 0, 0.15); }
         .bingo-badge { font-size: 1.2em; cursor: help; }
@@ -33,7 +32,6 @@
         
         .btn-editar { background: transparent; border: 1px solid #5a189a; color: #c77dff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold;}
         
-        /* Modal Edição */
         .modal-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #5a189a; width: 90%; max-width: 420px; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(3px); }
         .input-group { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; }
@@ -41,15 +39,21 @@
         .input-group input[type="text"] { width: 160px; text-align: left; }
         
         .btn-admin-salvar { width: 100%; padding: 15px; background: #5a189a; color: white; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
-        .msg-retorno { display: none; padding: 15px; text-align: center; font-weight: bold; border-radius: 6px; margin-top: 15px; }
-        .msg-sucesso { background: rgba(0,255,0,0.1); color: #00ff88; border: 1px solid #00ff88; }
-        .msg-erro { background: rgba(255,0,0,0.1); color: #ff4444; border: 1px solid #ff4444; }
 
         #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px;}
         .toast-msg { padding: 15px 25px; border-radius: 8px; font-weight: bold; font-size: 0.9em; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px; color: white;}
         .toast-msg.show { transform: translateX(0); }
         .toast-success { background: linear-gradient(135deg, #00b09b, #96c93d); }
         .toast-error { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+
+        /* NOVAS CLASSES PARA ACERTOS NA MOSCA */
+        @keyframes piscar-verde {
+            0% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); }
+            50% { background: #00ff88; color: #000; box-shadow: 0 0 15px #00ff88; border-color: #00ff88; transform: scale(1.1); }
+            100% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); }
+        }
+        .placar-piscando { animation: piscar-verde 1.2s infinite !important; border-radius: 6px; padding: 5px 12px; display: inline-block; }
+        .acerto-limao { background: #00ff88; color: #000 !important; font-weight: bold; padding: 4px 8px; border-radius: 4px; box-shadow: 0 0 10px rgba(0,255,136,0.6); }
 
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; }
@@ -91,18 +95,25 @@
                     </thead>
                     <tbody>
                         {% for p in palpites %}
+                        {% set res = resultados_oficiais.get(p.jogo_id, {}) %}
+                        {% set a_plac = (res.gols_a != 'N/A' and p.gols_a|string == res.gols_a|string and p.gols_b|string == res.gols_b|string) %}
+                        {% set a_am = (res.amarelos != '' and p.amarelos|string == res.amarelos|string) %}
+                        {% set a_vm = (res.vermelhos != '' and p.vermelhos|string == res.vermelhos|string) %}
+                        {% set a_ac = (res.acrescimo != '' and p.acrescimo|string == res.acrescimo|string) %}
+                        {% set a_art = (res.artilheiro != '' and p.artilheiro|lower == res.artilheiro|lower) %}
+                        
                         <tr>
                             <td class="user-highlight">{{ p.usuario }}</td>
                             <td>
                                 {% if p.gols_a and p.gols_b %}
-                                    <span class="placar">{{ p.gols_a }} x {{ p.gols_b }}</span>
+                                    <span class="placar {% if a_plac %}placar-piscando{% endif %}">{{ p.gols_a }} x {{ p.gols_b }}</span>
                                     {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
                                 {% else %}<span class="dado-vazio">-</span>{% endif %}
                             </td>
-                            <td>{% if p.amarelos %}{{ p.amarelos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.vermelhos %}{{ p.vermelhos }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.acrescimo %}{{ p.acrescimo }}'{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.artilheiro %}{{ p.artilheiro }}{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.amarelos %}<span class="{% if a_am %}acerto-limao{% endif %}">{{ p.amarelos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.vermelhos %}<span class="{% if a_vm %}acerto-limao{% endif %}">{{ p.vermelhos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.acrescimo %}<span class="{% if a_ac %}acerto-limao{% endif %}">{{ p.acrescimo }}'</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                            <td>{% if p.artilheiro %}<span class="{% if a_art %}acerto-limao{% endif %}">{{ p.artilheiro }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
                             
                             {% if usuario == 'Teste' %}
                             <td>

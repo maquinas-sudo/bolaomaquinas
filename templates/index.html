@@ -9,7 +9,24 @@
         body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; }
         .container { max-width: 900px; margin: auto; padding: 20px; box-sizing: border-box; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        /* === BANNER EMUMAQUINAS (LETREIRO DIGITAL) === */
+        .ticker-wrap {
+            width: 100%; overflow: hidden; background-color: #5a189a; color: #fff;
+            padding: 6px 0; box-sizing: border-box; border-bottom: 2px solid #c77dff;
+            box-shadow: 0 4px 10px rgba(90, 24, 154, 0.5); position: relative; z-index: 100;
+        }
+        .ticker {
+            display: inline-block; white-space: nowrap; padding-right: 100%;
+            animation-iteration-count: infinite; animation-timing-function: linear;
+            animation-name: ticker; animation-duration: 25s; font-weight: bold; font-size: 0.85em;
+            letter-spacing: 2px; text-transform: uppercase;
+        }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; margin-top: 10px; flex-wrap: wrap; gap: 15px; }
         .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
         .btn-sair { font-size: 0.5em; color: #ff4444; text-decoration: none; margin-left: 15px; border: 1px solid #ff4444; padding: 4px 8px; border-radius: 4px; vertical-align: middle; transition: 0.2s;}
         .btn-sair:hover { background: #ff4444; color: #000; }
@@ -29,7 +46,7 @@
         .status-em-breve { color: #ffffff; font-weight: bold; font-size: 0.85em; letter-spacing: 1px;}
         
         .jogo-row { background: #1e1e1e; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 5px solid #333; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position: relative; }
-.fase-info { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;}
+        .fase-info { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;}
         
         .selo-palpitado { background: rgba(0,255,136,0.1); color: #00ff88; padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #00ff88; font-size: 0.85em; white-space: nowrap; }
         
@@ -67,6 +84,26 @@
         #btn-confirmar, .btn-admin-salvar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
         .btn-admin-salvar { background: #5a189a; color: white; }
 
+        /* === POP-UP YOUTUBE === */
+        .modal-yt {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #111; padding: 20px; border-radius: 12px; border: 2px solid #ff0000;
+            width: 90%; max-width: 400px; z-index: 2500; box-shadow: 0 10px 40px rgba(255,0,0,0.5);
+            text-align: center;
+        }
+        .btn-fechar-yt {
+            position: absolute; top: -20px; right: -20px; background: #ff4444; color: white;
+            border: 3px solid #fff; border-radius: 50%; width: 50px; height: 50px;
+            font-size: 1.8em; font-weight: 900; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            transition: 0.2s; z-index: 2501;
+        }
+        .btn-fechar-yt:hover { background: #ff0000; transform: scale(1.1); }
+        .img-ad-yt {
+            width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #333; transition: 0.2s;
+        }
+        .img-ad-yt:hover { transform: scale(1.02); border-color: #ff0000;}
+
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; }
             .caixa-infos { width: 100%; flex-direction: column; align-items: stretch; }
@@ -79,6 +116,13 @@
     </style>
 </head>
 <body>
+
+<!-- LETREIRO ANIMADO EMUMAQUINAS -->
+<div class="ticker-wrap">
+    <div class="ticker">
+        🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador. Acelere a fundo na nostalgia! 🏎️ 👾
+    </div>
+</div>
 
 <div id="toast-container"></div>
 
@@ -135,8 +179,11 @@
                         {% if jogo.status == 'ENCERRADO' and jogo.vencedores_placar|length > 0 %}
                             <div style="color: #00ff88; font-size: 0.8em; font-weight: bold; margin-top: 5px; text-align: center;">🥇 {{ jogo.vencedores_placar|join(', ') }}</div>
                         {% endif %}
-                        {% if jogo.bingo_vencedores|length > 0 %}
+                        {% if jogo.status == 'ENCERRADO' and jogo.bingo_vencedores|length > 0 %}
                             <div style="color: #ffcc00; font-size: 0.8em; font-weight: bold; margin-top: 5px; text-align: center;">👑 BINGO: {{ jogo.bingo_vencedores|join(', ') }}</div>
+                        {% endif %}
+                        {% if jogo.status == 'ENCERRADO' and jogo.na_trave_vencedores|length > 0 %}
+                            <div style="color: #ff9900; font-size: 0.8em; font-weight: bold; margin-top: 5px; text-align: center;">🥅 NA TRAVE: {{ jogo.na_trave_vencedores|join(', ') }}</div>
                         {% endif %}
                     </div>
                 </div>
@@ -248,6 +295,26 @@
     <button class="btn-admin-salvar" id="btn-admin-salvar" onclick="salvarAdminJogo()">Salvar Alterações</button>
 </div>
 
+<!-- Modal Anúncios Zueira -->
+<div class="overlay" id="overlay-anuncio" onclick="fecharAnuncio()"></div>
+<div id="modal-anuncio" class="modal-box" style="border-color: #ff4444; text-align: center; background: #111;">
+    <h2 style="color: #ffcc00; font-size: 1.8em; margin-top: 0;">🚨 ATENÇÃO PILOTO!</h2>
+    <p style="color: white; font-size: 1.1em; line-height: 1.5;" id="texto-anuncio"></p>
+    <button class="btn-admin-salvar" style="background: #ffcc00; color: #000; font-weight: 900;" onclick="fecharAnuncio()">PULAR ANÚNCIO ⏭️</button>
+</div>
+
+<!-- O POPUP DO YOUTUBE QUE DISPARA A CADA 2 MINUTOS -->
+<div class="overlay" id="overlay-yt" onclick="fecharAnuncioYT()" style="z-index: 2499;"></div>
+<div id="modal-yt" class="modal-yt">
+    <button class="btn-fechar-yt" onclick="fecharAnuncioYT()">✖</button>
+    <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🔥 Conheça os Projetos!</h3>
+    <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Dicas de mecânica, adaptações e muita resenha na garagem. Inscreva-se!</p>
+    
+    <a href="https://www.youtube.com/@canaldomaquinas/videos" target="_blank" onclick="fecharAnuncioYT()">
+        <img src="{{ url_for('static', filename='banner_youtube.jpg') }}" alt="Canal do Máquinas" class="img-ad-yt">
+    </a>
+</div>
+
 <script>
     function showToast(message, type = 'success') {
         const toastContainer = document.getElementById('toast-container');
@@ -263,7 +330,6 @@
         }, 3000);
     }
 
-    // RELÓGIO DE CHECK ENGINE - APENAS AO VIVO / EM BREVE
     setInterval(() => {
         let agora = new Date().getTime() / 1000;
         document.querySelectorAll('.jogo-row').forEach(row => {
@@ -409,6 +475,44 @@
             else { showToast(data.erro, 'error'); btn.innerText = "Salvar Alterações"; btn.disabled = false;}
         }).catch(err => { showToast('Erro de conexão.', 'error'); fecharModais(); });
     }
+
+    function mostrarAnuncioSurpresa() {
+        const anuncios = [
+            "Aviso do VAR: Os seus palpites estão a ser analisados por excesso de PÉ FRIO.",
+            "É O MAQUINAS",
+            "O Racha X1 está aberto! Desafia aquele amigo que fala muito mas não acerta nada."
+        ];
+        
+        if (Math.random() < 0.15) {
+            const texto = anuncios[Math.floor(Math.random() * anuncios.length)];
+            document.getElementById('texto-anuncio').innerText = texto;
+            document.getElementById('overlay-anuncio').style.display = 'block';
+            document.getElementById('modal-anuncio').style.display = 'block';
+        }
+    }
+
+    function fecharAnuncio() {
+        document.getElementById('overlay-anuncio').style.display = 'none';
+        document.getElementById('modal-anuncio').style.display = 'none';
+    }
+
+    // === FUNÇÕES DO POP-UP YOUTUBE (TEMPORIZADOR) ===
+    function mostrarAnuncioYT() {
+        document.getElementById('overlay-yt').style.display = 'block';
+        document.getElementById('modal-yt').style.display = 'block';
+    }
+
+    function fecharAnuncioYT() {
+        document.getElementById('overlay-yt').style.display = 'none';
+        document.getElementById('modal-yt').style.display = 'none';
+    }
+
+    window.onload = function() {
+        mostrarAnuncioSurpresa(); // 15% de chance de mostrar piada logo ao abrir
+        
+        // Ativa o pop-up agressivo do YouTube a cada exatos 2 minutos (120.000 ms)
+        setInterval(mostrarAnuncioYT, 120000); 
+    };
 </script>
 </body>
 </html>
