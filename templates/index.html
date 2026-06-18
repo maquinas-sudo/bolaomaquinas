@@ -315,7 +315,9 @@
 <!-- O POPUP DO AMIGO (50% de chance) -->
 <div class="overlay" id="overlay-amigo" onclick="fecharAnuncios()" style="z-index: 2499;"></div>
 <div id="modal-amigo" class="modal-ad" style="border-color: #c77dff;">
+    <!-- BOTÃO X ADICIONADO E DESTACADO PARA O PARCEIRO AQUI -->
     <button class="btn-fechar-ad" onclick="fecharAnuncios()" style="background: #5a189a; border-color: #c77dff;">✖</button>
+    
     <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🚀 Parceiro Oficial</h3>
     <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Dicas exclusivas, bastidores e muito mais!</p>
     
@@ -490,8 +492,8 @@
         const ultimoPopup = localStorage.getItem('ultimoPopupTime');
         const agora = new Date().getTime();
         
-        // 120000 ms = exatos 2 minutos (Mesmo que o utilizador atualize a página, a memória persiste)
-        if (!ultimoPopup || (agora - parseInt(ultimoPopup)) > 120000) {
+        // 150000 ms = exatos 2 minutos e 30 segundos
+        if (!ultimoPopup || (agora - parseInt(ultimoPopup)) > 150000) {
             if (Math.random() < 0.5) {
                 // 50% Canal do Máquinas
                 document.getElementById('overlay-yt').style.display = 'block';
