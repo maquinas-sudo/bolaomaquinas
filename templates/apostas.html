@@ -77,54 +77,66 @@
             <h3 style="color: #00ff88;">A pista está vazia...</h3>
         </div>
     {% else %}
-        {% for nome_jogo, palpites in apostas_agrupadas.items() %}
+        {% for id_jogo, info in apostas_agrupadas.items() %}
         <div class="card-jogo">
-            <div class="header-jogo">⚽ {{ nome_jogo }}</div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="text-align: left;">Jogador</th>
-                            <th>Placar</th>
-                            <th>Amarelos</th>
-                            <th>Vermelhos</th>
-                            <th>Acréscimos</th>
-                            <th>Artilheiro</th>
-                            {% if usuario == 'Teste' %}<th>Moderar</th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in palpites %}
-                        {% set res = resultados_oficiais.get(p.jogo_id, {}) %}
-                        {% set a_plac = (res.gols_a != 'N/A' and p.gols_a|string == res.gols_a|string and p.gols_b|string == res.gols_b|string) %}
-                        {% set a_am = (res.amarelos != '' and p.amarelos|string == res.amarelos|string) %}
-                        {% set a_vm = (res.vermelhos != '' and p.vermelhos|string == res.vermelhos|string) %}
-                        {% set a_ac = (res.acrescimo != '' and p.acrescimo|string == res.acrescimo|string) %}
-                        {% set a_art = (res.artilheiro != '' and p.artilheiro|lower == res.artilheiro|lower) %}
-                        
-                        <tr>
-                            <td class="user-highlight">{{ p.usuario }}</td>
-                            <td>
-                                {% if p.gols_a and p.gols_b %}
-                                    <span class="placar {% if a_plac %}placar-piscando{% endif %}">{{ p.gols_a }} x {{ p.gols_b }}</span>
-                                    {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
-                                {% else %}<span class="dado-vazio">-</span>{% endif %}
-                            </td>
-                            <td>{% if p.amarelos %}<span class="{% if a_am %}acerto-limao{% endif %}">{{ p.amarelos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.vermelhos %}<span class="{% if a_vm %}acerto-limao{% endif %}">{{ p.vermelhos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.acrescimo %}<span class="{% if a_ac %}acerto-limao{% endif %}">{{ p.acrescimo }}'</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                            <td>{% if p.artilheiro %}<span class="{% if a_art %}acerto-limao{% endif %}">{{ p.artilheiro }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+            <div class="header-jogo">⚽ {{ info.nome }}</div>
+            
+            {% if info.ocultar %}
+                <div style="padding: 40px 20px; text-align: center; color: #ffcc00; font-weight: bold; background: #151515;">
+                    <span style="font-size: 2em; display: block; margin-bottom: 10px;">🔒</span>
+                    O PRAZO DESTE JOGO AINDA ESTÁ ABERTO!<br>
+                    <span style="font-size: 0.85em; color: #aaa; font-weight: normal; margin-top: 10px; display: inline-block;">Faça o seu palpite na Arena primeiro para desbloquear a visão e poder espionar as apostas dos adversários.</span>
+                </div>
+            {% else %}
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Jogador</th>
+                                <th>Placar</th>
+                                <th>Amarelos</th>
+                                <th>Vermelhos</th>
+                                <th>Acréscimos</th>
+                                <th>Artilheiro</th>
+                                {% if usuario == 'Teste' %}<th>Moderar</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in info.palpites %}
+                            {% set res = resultados_oficiais.get(p.jogo_id, {}) %}
+                            {% set a_plac = (res.gols_a != 'N/A' and p.gols_a|string == res.gols_a|string and p.gols_b|string == res.gols_b|string) %}
+                            {% set a_am = (res.amarelos != '' and p.amarelos|string == res.amarelos|string) %}
+                            {% set a_vm = (res.vermelhos != '' and p.vermelhos|string == res.vermelhos|string) %}
+                            {% set a_ac = (res.acrescimo != '' and p.acrescimo|string == res.acrescimo|string) %}
+                            {% set a_art = (res.artilheiro != '' and p.artilheiro|lower == res.artilheiro|lower) %}
                             
-                            {% if usuario == 'Teste' %}
-                            <td>
-                                <button class="btn-editar" onclick="abrirModalEdicao({{ p.aposta_id }}, '{{ p.usuario }}', '{{ p.gols_a }}', '{{ p.gols_b }}', '{{ p.amarelos }}', '{{ p.vermelhos }}', '{{ p.acrescimo }}', '{{ p.penaltis }}', '{{ p.artilheiro }}')">✏️</button>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            <tr {% if p.editado_admin %}style="background-color: rgba(255, 68, 68, 0.1); border-left: 4px solid #ff4444;" title="Editado pelo Admin/VAR"{% endif %}>
+                                <td class="user-highlight">
+                                    {{ p.usuario }} 
+                                    {% if p.editado_admin %}<span style="font-size: 0.7em; color:#ff4444; margin-left: 5px;">[VAR]</span>{% endif %}
+                                </td>
+                                <td>
+                                    {% if p.gols_a and p.gols_b %}
+                                        <span class="placar {% if a_plac %}placar-piscando{% endif %}">{{ p.gols_a }} x {{ p.gols_b }}</span>
+                                        {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
+                                    {% else %}<span class="dado-vazio">-</span>{% endif %}
+                                </td>
+                                <td>{% if p.amarelos %}<span class="{% if a_am %}acerto-limao{% endif %}">{{ p.amarelos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                                <td>{% if p.vermelhos %}<span class="{% if a_vm %}acerto-limao{% endif %}">{{ p.vermelhos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                                <td>{% if p.acrescimo %}<span class="{% if a_ac %}acerto-limao{% endif %}">{{ p.acrescimo }}'</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                                <td>{% if p.artilheiro %}<span class="{% if a_art %}acerto-limao{% endif %}">{{ p.artilheiro }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
+                                
+                                {% if usuario == 'Teste' %}
+                                <td>
+                                    <button class="btn-editar" onclick="abrirModalEdicao({{ p.aposta_id }}, '{{ p.usuario }}', '{{ p.gols_a }}', '{{ p.gols_b }}', '{{ p.amarelos }}', '{{ p.vermelhos }}', '{{ p.acrescimo }}', '{{ p.penaltis }}', '{{ p.artilheiro }}')">✏️</button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         </div>
         {% endfor %}
     {% endif %}

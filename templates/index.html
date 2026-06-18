@@ -84,25 +84,23 @@
         #btn-confirmar, .btn-admin-salvar { width: 100%; padding: 15px; background: #00ff88; color: #000; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 10px; text-transform: uppercase; }
         .btn-admin-salvar { background: #5a189a; color: white; }
 
-        /* === POP-UP YOUTUBE === */
-        .modal-yt {
+        /* === POP-UPS ANÚNCIOS === */
+        .modal-ad {
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: #111; padding: 20px; border-radius: 12px; border: 2px solid #ff0000;
-            width: 90%; max-width: 400px; z-index: 2500; box-shadow: 0 10px 40px rgba(255,0,0,0.5);
+            width: 90%; max-width: 400px; z-index: 2500; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             text-align: center;
         }
-        .btn-fechar-yt {
+        .btn-fechar-ad {
             position: absolute; top: -20px; right: -20px; background: #ff4444; color: white;
             border: 3px solid #fff; border-radius: 50%; width: 50px; height: 50px;
             font-size: 1.8em; font-weight: 900; cursor: pointer; display: flex;
             align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.8);
             transition: 0.2s; z-index: 2501;
         }
-        .btn-fechar-yt:hover { background: #ff0000; transform: scale(1.1); }
-        .img-ad-yt {
-            width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #333; transition: 0.2s;
-        }
-        .img-ad-yt:hover { transform: scale(1.02); border-color: #ff0000;}
+        .btn-fechar-ad:hover { background: #ff0000; transform: scale(1.1); }
+        .img-ad { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #333; transition: 0.2s; }
+        .img-ad:hover { transform: scale(1.02); }
 
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: flex-start; }
@@ -120,7 +118,7 @@
 <!-- LETREIRO ANIMADO EMUMAQUINAS -->
 <div class="ticker-wrap">
     <div class="ticker">
-        Ei, você,                🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador. Acelere fundo na nostalgia! 🏎️ 👾
+        Ei, você,                🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador da resenha. Acelere fundo na nostalgia! 🏎️ 👾
     </div>
 </div>
 
@@ -295,7 +293,7 @@
     <button class="btn-admin-salvar" id="btn-admin-salvar" onclick="salvarAdminJogo()">Salvar Alterações</button>
 </div>
 
-<!-- Modal Anúncios Zueira -->
+<!-- Modal Anúncios Zueira (Ao carregar) -->
 <div class="overlay" id="overlay-anuncio" onclick="fecharAnuncio()"></div>
 <div id="modal-anuncio" class="modal-box" style="border-color: #ff4444; text-align: center; background: #111;">
     <h2 style="color: #ffcc00; font-size: 1.8em; margin-top: 0;">🚨 ATENÇÃO!</h2>
@@ -303,16 +301,26 @@
     <button class="btn-admin-salvar" style="background: #ffcc00; color: #000; font-weight: 900;" onclick="fecharAnuncio()">PULAR ANÚNCIO ⏭️</button>
 </div>
 
-<!-- O POPUP DO YOUTUBE QUE DISPARA A CADA 2 MINUTOS -->
-<div class="overlay" id="overlay-yt" onclick="fecharAnuncioYT()" style="z-index: 2499;"></div>
-<div id="modal-yt" class="modal-yt">
-    <button class="btn-fechar-yt" onclick="fecharAnuncioYT()">✖</button>
+<!-- O POPUP DO YOUTUBE (50% de chance) -->
+<div class="overlay" id="overlay-yt" onclick="fecharAnuncios()" style="z-index: 2499;"></div>
+<div id="modal-yt" class="modal-ad">
+    <button class="btn-fechar-ad" onclick="fecharAnuncios()">✖</button>
     <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🔥 Assista Já!</h3>
     <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Mecânica, humor e carro velho na garagem. Inscreva-se!</p>
-    
-    <a href="https://www.youtube.com/@canaldomaquinas/videos" target="_blank" onclick="fecharAnuncioYT()">
-        <img src="{{ url_for('static', filename='banner_youtube.jpg') }}" alt="Canal do Máquinas" class="img-ad-yt">
+    <a href="https://www.youtube.com/@canaldomaquinas/videos" target="_blank" onclick="fecharAnuncios()">
+        <img src="{{ url_for('static', filename='banner_youtube.jpg') }}" alt="Canal do Máquinas" class="img-ad">
     </a>
+</div>
+
+<!-- O POPUP DO AMIGO (50% de chance) -->
+<div class="overlay" id="overlay-amigo" onclick="fecharAnuncios()" style="z-index: 2499;"></div>
+<div id="modal-amigo" class="modal-ad" style="border-color: #c77dff;">
+    <button class="btn-fechar-ad" onclick="fecharAnuncios()" style="background: #5a189a; border-color: #c77dff;">✖</button>
+    <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🚀 Parceiro Oficial</h3>
+    <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Dicas exclusivas, bastidores e muito mais!</p>
+    
+    <img src="{{ url_for('static', filename='anuncio_amigo.jpg') }}" alt="Anúncio Parceiro" class="img-ad" style="margin-bottom: 15px; border-color: #5a189a;">
+    <a href="https://www.instagram.com/pedroh_acioly/" target="_blank" onclick="fecharAnuncios()" class="btn-admin-salvar" style="background: #c77dff; color: #fff; text-decoration: none; display: block; margin-top: 5px;">SAIBA MAIS</a>
 </div>
 
 <script>
@@ -322,12 +330,8 @@
         toast.className = `toast-msg toast-${type}`;
         toast.innerHTML = type === 'success' ? `✅ ${message}` : `❌ ${message}`;
         toastContainer.appendChild(toast);
-        
         setTimeout(() => toast.classList.add('show'), 10);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 400);
-        }, 3000);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
     }
 
     setInterval(() => {
@@ -409,25 +413,16 @@
         fetch('/apostar', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                jogo_id: document.getElementById('jogo_id').value, 
-                gols_a: document.getElementById('gols_a').value, 
-                gols_b: document.getElementById('gols_b').value,
-                amarelos: document.getElementById('amarelos').value, 
-                vermelhos: document.getElementById('vermelhos').value,
-                acrescimo: document.getElementById('acrescimo').value, 
-                artilheiro: document.getElementById('artilheiro').value,
-                turbo: document.getElementById('turbo_boost').checked,
+                jogo_id: document.getElementById('jogo_id').value, gols_a: document.getElementById('gols_a').value, 
+                gols_b: document.getElementById('gols_b').value, amarelos: document.getElementById('amarelos').value, 
+                vermelhos: document.getElementById('vermelhos').value, acrescimo: document.getElementById('acrescimo').value, 
+                artilheiro: document.getElementById('artilheiro').value, turbo: document.getElementById('turbo_boost').checked,
                 racha: document.getElementById('racha_user').value
             })
         }).then(r => r.json()).then(data => {
-            if (data.sucesso) { 
-                showToast('Aposta confirmada com sucesso!', 'success');
-                setTimeout(() => window.location.reload(), 1500); 
-            } else { 
-                showToast(data.erro, 'error');
-                btn.innerText = "Confirmar Aposta"; btn.disabled = false;
-            }
-        }).catch(err => { showToast('Erro de conexão com o servidor', 'error'); fecharModais(); });
+            if (data.sucesso) { showToast('Aposta confirmada com sucesso!', 'success'); setTimeout(() => window.location.reload(), 1500); } 
+            else { showToast(data.erro, 'error'); btn.innerText = "Confirmar Aposta"; btn.disabled = false; }
+        }).catch(err => { showToast('Erro de conexão', 'error'); fecharModais(); });
     }
 
     function forcarAtualizacaoAPI() {
@@ -438,37 +433,28 @@
     }
 
     function acionarManutencao() {
-        fetch('/admin_toggle_manutencao', { method: 'POST' }).then(r => r.json()).then(d => { 
-            if(d.sucesso) window.location.reload(); 
-        });
+        fetch('/admin_toggle_manutencao', { method: 'POST' }).then(r => r.json()).then(d => { if(d.sucesso) window.location.reload(); });
     }
 
     function abrirModalAdmin(id, link, amarelos, vermelhos, acrescimo, penaltis, artilheiro, status_manual, e) {
         if(e) e.stopPropagation(); 
-        document.getElementById('admin_jogo_id').value = id;
-        document.getElementById('admin_link').value = link !== 'None' ? link : '';
-        document.getElementById('admin_amarelos').value = amarelos !== 'None' ? amarelos : '';
-        document.getElementById('admin_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
-        document.getElementById('admin_acrescimo').value = acrescimo !== 'None' ? acrescimo : '';
-        document.getElementById('admin_penaltis').value = penaltis !== 'None' ? penaltis : '';
-        document.getElementById('admin_artilheiro').value = artilheiro !== 'None' ? artilheiro : '';
-        document.getElementById('admin_status_manual').value = status_manual !== 'None' ? status_manual : '';
+        document.getElementById('admin_jogo_id').value = id; document.getElementById('admin_link').value = link !== 'None' ? link : '';
+        document.getElementById('admin_amarelos').value = amarelos !== 'None' ? amarelos : ''; document.getElementById('admin_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
+        document.getElementById('admin_acrescimo').value = acrescimo !== 'None' ? acrescimo : ''; document.getElementById('admin_penaltis').value = penaltis !== 'None' ? penaltis : '';
+        document.getElementById('admin_artilheiro').value = artilheiro !== 'None' ? artilheiro : ''; document.getElementById('admin_status_manual').value = status_manual !== 'None' ? status_manual : '';
         
-        document.getElementById('btn-admin-salvar').style.display = 'block';
-        document.getElementById('modal-admin').style.display = 'block';
-        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('btn-admin-salvar').style.display = 'block'; document.getElementById('modal-admin').style.display = 'block'; document.getElementById('overlay').style.display = 'block';
     }
 
     function salvarAdminJogo() {
-        const btn = document.getElementById('btn-admin-salvar');
-        btn.innerText = "Salvando..."; btn.disabled = true;
+        const btn = document.getElementById('btn-admin-salvar'); btn.innerText = "Salvando..."; btn.disabled = true;
         fetch('/admin_salvar_jogo', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 jogo_id: document.getElementById('admin_jogo_id').value, link_stream: document.getElementById('admin_link').value,
                 amarelos: document.getElementById('admin_amarelos').value, vermelhos: document.getElementById('admin_vermelhos').value,
-                acrescimo: document.getElementById('admin_acrescimo').value, penaltis: document.getElementById('admin_penaltis').value, artilheiro: document.getElementById('admin_artilheiro').value,
-                status_manual: document.getElementById('admin_status_manual').value
+                acrescimo: document.getElementById('admin_acrescimo').value, penaltis: document.getElementById('admin_penaltis').value, 
+                artilheiro: document.getElementById('admin_artilheiro').value, status_manual: document.getElementById('admin_status_manual').value
             })
         }).then(r => r.json()).then(data => {
             if (data.sucesso) { showToast('Salvo!', 'success'); setTimeout(() => window.location.reload(), 1500); } 
@@ -482,10 +468,8 @@
             "É O MAQUINAS",
             "O Racha X1 está aberto! Desafia aquele amigo que fala muito mas não acerta nada."
         ];
-        
         if (Math.random() < 0.15) {
-            const texto = anuncios[Math.floor(Math.random() * anuncios.length)];
-            document.getElementById('texto-anuncio').innerText = texto;
+            document.getElementById('texto-anuncio').innerText = anuncios[Math.floor(Math.random() * anuncios.length)];
             document.getElementById('overlay-anuncio').style.display = 'block';
             document.getElementById('modal-anuncio').style.display = 'block';
         }
@@ -496,22 +480,36 @@
         document.getElementById('modal-anuncio').style.display = 'none';
     }
 
-    // === FUNÇÕES DO POP-UP YOUTUBE (TEMPORIZADOR) ===
-    function mostrarAnuncioYT() {
-        document.getElementById('overlay-yt').style.display = 'block';
-        document.getElementById('modal-yt').style.display = 'block';
+    // === LÓGICA DE POP-UPS IMUNES AO RELOAD (LOCALSTORAGE) ===
+    function fecharAnuncios() {
+        document.getElementById('overlay-yt').style.display = 'none'; document.getElementById('modal-yt').style.display = 'none';
+        document.getElementById('overlay-amigo').style.display = 'none'; document.getElementById('modal-amigo').style.display = 'none';
     }
 
-    function fecharAnuncioYT() {
-        document.getElementById('overlay-yt').style.display = 'none';
-        document.getElementById('modal-yt').style.display = 'none';
+    function gerenciarPopupsHibridos() {
+        const ultimoPopup = localStorage.getItem('ultimoPopupTime');
+        const agora = new Date().getTime();
+        
+        // 120000 ms = exatos 2 minutos (Mesmo que o utilizador atualize a página, a memória persiste)
+        if (!ultimoPopup || (agora - parseInt(ultimoPopup)) > 120000) {
+            if (Math.random() < 0.5) {
+                // 50% Canal do Máquinas
+                document.getElementById('overlay-yt').style.display = 'block';
+                document.getElementById('modal-yt').style.display = 'block';
+            } else {
+                // 50% Parceiro Pedro
+                document.getElementById('overlay-amigo').style.display = 'block';
+                document.getElementById('modal-amigo').style.display = 'block';
+            }
+            // Regista a nova hora em que o anúncio disparou
+            localStorage.setItem('ultimoPopupTime', agora);
+        }
     }
 
     window.onload = function() {
-        mostrarAnuncioSurpresa(); // 15% de chance de mostrar piada logo ao abrir
-        
-        // Ativa o pop-up agressivo do YouTube a cada  (125.000 ms)
-        setInterval(mostrarAnuncioYT, 125000); 
+        mostrarAnuncioSurpresa(); 
+        gerenciarPopupsHibridos(); // Checa na hora que abre o site
+        setInterval(gerenciarPopupsHibridos, 5000); // Fica a monitorizar a cada 5 segundos de forma silenciosa
     };
 </script>
 </body>

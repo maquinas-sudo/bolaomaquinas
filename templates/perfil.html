@@ -85,6 +85,30 @@
         <canvas id="perfChart" width="400" height="150"></canvas>
     </div>
 
+    <div class="chart-box">
+        <h3 style="color: #fff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;">📋 EXTRATO DE PONTOS (Auditoria)</h3>
+        {% if stats.extrato|length == 0 %}
+            <p style="color: #888; font-size: 0.9em; margin-top: 15px;">Nenhum ponto consolidado ainda na sua garagem.</p>
+        {% else %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9em; margin-top: 15px; min-width: 500px;">
+                    <tr style="border-bottom: 2px solid #333; color: #888; text-transform: uppercase;">
+                        <th style="padding: 10px;">Jogo Oficial</th>
+                        <th style="padding: 10px; text-align: center;">Pontos</th>
+                        <th style="padding: 10px;">O que você acertou?</th>
+                    </tr>
+                    {% for ex in stats.extrato|reverse %}
+                    <tr style="border-bottom: 1px solid #222; transition: 0.2s;">
+                        <td style="padding: 12px 10px; color: #fff; font-weight: bold;">{{ ex.jogo }}</td>
+                        <td style="padding: 12px 10px; color: #00ff88; font-weight: 900; font-size: 1.1em; text-align: center;">+{{ ex.pontos }}</td>
+                        <td style="padding: 12px 10px; color: #aaa;">{{ ex.desc }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
     <div class="conquistas-box">
         <h3 style="color: #fff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;">🎖️ PRATELEIRA DE TROFÉUS</h3>
         {% for c in conquistas %}
