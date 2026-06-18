@@ -8,7 +8,6 @@ app = Flask(__name__)
 app.secret_key = 'arena_maquinas_2026_super_blindada'
 
 # --- GESTÃO FÁCIL DE USUÁRIOS E SENHAS ---
-# REMOVIDO "Teste" DESTA LISTA POR SEGURANÇA!
 USUARIOS_PERMITIDOS = {
     "Joao mano": "JMOV123", 
     "Lucas": "LCS123", 
@@ -80,9 +79,8 @@ def obter_dados_copa():
             
             dt_obj = datetime.strptime(match['utcDate'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
             dt_local = dt_obj - timedelta(hours=4)
-            limite_ao_vivo = dt_obj - timedelta(minutes=10) # Aciona 10 min antes
+            limite_ao_vivo = dt_obj - timedelta(minutes=10)
             
-            # --- LÓGICA DE STATUS HÍBRIDO ---
             if status_api in ['IN_PLAY', 'PAUSED']: 
                 status = "AO VIVO"
                 tem_ao_vivo_agora = True
@@ -154,7 +152,7 @@ def criar_tabela():
         add_col('palpites', 'turbo', 'BOOLEAN DEFAULT FALSE')
         add_col('palpites', 'data_registro', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
         add_col('palpites', 'racha_desafio', 'VARCHAR(50)')
-        add_col('palpites', 'editado_admin', 'BOOLEAN DEFAULT FALSE') # NOVO
+        add_col('palpites', 'editado_admin', 'BOOLEAN DEFAULT FALSE')
 
         cur.execute('''CREATE TABLE IF NOT EXISTS jogos_admin (jogo_id INT PRIMARY KEY, link_stream VARCHAR(255), amarelos VARCHAR(50), vermelhos VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), artilheiro VARCHAR(50))''')
         conn.commit()
@@ -225,6 +223,15 @@ def processar_ranking_e_financas():
         if status_final == 'ENCERRADO' and g_a_real != 'N/A' and g_b_real != 'N/A':
             ga_r, gb_r = int(g_a_real), int(g_b_real)
             
+            # REGRA DOS CONCORRENTES: Mínimo de 2 pessoas apostando na classe para validar os +2 pontos extras
+            classes_validas = {
+                'amarelos': len(classes_apostadores['amarelos']) >= 2,
+                'vermelhos': len(classes_apostadores['vermelhos']) >= 2,
+                'acrescimo': len(classes_apostadores['acrescimo']) >= 2,
+                'penaltis': len(classes_apostadores['penaltis']) >= 2,
+                'artilheiro': len(classes_apostadores['artilheiro']) >= 2
+            }
+            
             for p in classes_apostadores['placar']:
                 if int(p[3]) == ga_r and int(p[4]) == gb_r: classes_ganhadores['placar'] = True
             for p in classes_apostadores['amarelos']:
@@ -274,16 +281,39 @@ def processar_ranking_e_financas():
                 else: is_bingo = False
                     
                 if am and str(am)!='None':
-                    if not (adm.get('amarelos') and str(am).strip() == str(adm['amarelos']).strip()): is_bingo = False
+                    if adm.get('amarelos') and str(am).strip() == str(adm['amarelos']).strip():
+                        if classes_validas['amarelos']:
+                            pts_ganhos += 2
+                            detalhes_jogo.append("Amarelos (+2)")
+                    else: is_bingo = False
+                    
                 if vm and str(vm)!='None':
-                    if not (adm.get('vermelhos') and str(vm).strip() == str(adm['vermelhos']).strip()): is_bingo = False
+                    if adm.get('vermelhos') and str(vm).strip() == str(adm['vermelhos']).strip():
+                        if classes_validas['vermelhos']:
+                            pts_ganhos += 2
+                            detalhes_jogo.append("Vermelhos (+2)")
+                    else: is_bingo = False
+                    
                 if ac and str(ac)!='None':
-                    if not (adm.get('acrescimo') and str(ac).strip() == str(adm['acrescimo']).strip()): is_bingo = False
+                    if adm.get('acrescimo') and str(ac).strip() == str(adm['acrescimo']).strip():
+                        if classes_validas['acrescimo']:
+                            pts_ganhos += 2
+                            detalhes_jogo.append("Acréscimos (+2)")
+                    else: is_bingo = False
+                    
                 if pe and str(pe)!='None':
-                    if not (adm.get('penaltis') and str(pe).strip().lower() == str(adm['penaltis']).strip().lower()): is_bingo = False
+                    if adm.get('penaltis') and str(pe).strip().lower() == str(adm['penaltis']).strip().lower():
+                        if classes_validas['penaltis']:
+                            pts_ganhos += 2
+                            detalhes_jogo.append("Pênaltis (+2)")
+                    else: is_bingo = False
+                    
                 if art and str(art)!='None':
                     if adm.get('artilheiro') and str(art).strip().lower() == str(adm['artilheiro']).strip().lower():
                         usuarios_stats[user]['artilheiros_certos'] += 1
+                        if classes_validas['artilheiro']:
+                            pts_ganhos += 2
+                            detalhes_jogo.append("Artilheiro (+2)")
                     else: is_bingo = False
 
                 if turbo and pts_ganhos > 0: 
@@ -388,7 +418,6 @@ def login():
         user = request.form.get('usuario')
         pwd = request.form.get('senha')
         
-        # CHECAGEM DO ADMIN POR VARIÁVEL DE AMBIENTE
         if user == 'Teste':
             senha_admin = os.environ.get('SENHA_ADMIN_OFICINA')
             if pwd == senha_admin and senha_admin is not None:
@@ -397,7 +426,6 @@ def login():
             else:
                 erro = "Acesso negado. Credenciais inválidas."
                 
-        # CHECAGEM DE USUÁRIOS COMUNS
         elif user in USUARIOS_PERMITIDOS and USUARIOS_PERMITIDOS[user] == pwd:
             session['usuario'] = user
             return redirect(url_for('index'))
@@ -486,7 +514,6 @@ def admin_editar_aposta():
     d = request.json
     try:
         conn = get_db_connection(); cur = conn.cursor()
-        # SETAMOS editado_admin=TRUE ao modificar a aposta
         cur.execute('''UPDATE palpites SET gols_a=%s, gols_b=%s, amarelos=%s, vermelhos=%s, acrescimo=%s, penaltis=%s, autor_gol=%s, editado_admin=TRUE WHERE id=%s''',
                     (d.get('gols_a'), d.get('gols_b'), d.get('amarelos'), d.get('vermelhos'), d.get('acrescimo'), d.get('penaltis'), d.get('artilheiro'), d.get('aposta_id')))
         conn.commit(); cur.close(); conn.close()
@@ -515,7 +542,6 @@ def apostas_publicas():
         id_jogo = r[2]
         nome_jogo = mapa_jogos.get(id_jogo, f"Jogo #{id_jogo}")
         
-        # CHECAGEM DO CADEADO ANTI-CÓPIA
         jogo_obj = next((j for j in todos_jogos if j['id'] == id_jogo), None)
         tempo_limite = jogo_obj['timestamp'] + 900 if jogo_obj else 0
         is_aberto = agora_ts <= tempo_limite
