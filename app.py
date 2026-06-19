@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 import psycopg2
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
@@ -153,11 +154,19 @@ def criar_tabela():
         add_col('palpites', 'data_registro', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
         add_col('palpites', 'racha_desafio', 'VARCHAR(50)')
         add_col('palpites', 'editado_admin', 'BOOLEAN DEFAULT FALSE')
+        add_col('palpites', 'oculto', 'BOOLEAN DEFAULT FALSE')
 
         cur.execute('''CREATE TABLE IF NOT EXISTS jogos_admin (jogo_id INT PRIMARY KEY, link_stream VARCHAR(255), amarelos VARCHAR(50), vermelhos VARCHAR(50), acrescimo VARCHAR(50), penaltis VARCHAR(50), artilheiro VARCHAR(50))''')
-        conn.commit()
-        
         add_col('jogos_admin', 'status_manual', 'VARCHAR(20)')
+
+        cur.execute('''CREATE TABLE IF NOT EXISTS log_roleta (
+            id SERIAL PRIMARY KEY,
+            usuario VARCHAR(50),
+            premio VARCHAR(50),
+            custo INT,
+            data_registro TIMESTAMP
+        )''')
+        conn.commit()
         
         cur.close()
         conn.close()
@@ -181,6 +190,9 @@ def processar_ranking_e_financas():
     
     cur.execute("SELECT id, usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, acrescimo, penaltis, autor_gol, turbo, racha_desafio FROM palpites")
     todos_palpites = cur.fetchall()
+    
+    cur.execute("SELECT usuario, premio, custo FROM log_roleta")
+    logs_roleta = cur.fetchall()
     cur.close(); conn.close()
     
     palpites_por_jogo = {}
@@ -194,6 +206,17 @@ def processar_ranking_e_financas():
     total_pool_grupo = 0.0
     bingos_jogos = {} 
     na_trave_jogos = {} 
+
+    # Aplicar Penalidades da Roleta Cassino
+    for log in logs_roleta:
+        u, premio, custo = log
+        if u in usuarios_stats:
+            if custo > 0:
+                usuarios_stats[u]['pontos'] -= custo
+                usuarios_stats[u]['extrato'].append({"jogo": "🎰 Cassino (Roleta)", "pontos": -custo, "desc": "Custo da Ficha"})
+            if premio == 'PUNICAO_SEVERA':
+                usuarios_stats[u]['pontos'] -= 3
+                usuarios_stats[u]['extrato'].append({"jogo": "🎰 Cassino (Roleta)", "pontos": -3, "desc": "Punição Severa (Motor Fundido)"})
     
     for j_id, palpites in palpites_por_jogo.items():
         jogo = todos_jogos.get(j_id)
@@ -223,7 +246,6 @@ def processar_ranking_e_financas():
         if status_final == 'ENCERRADO' and g_a_real != 'N/A' and g_b_real != 'N/A':
             ga_r, gb_r = int(g_a_real), int(g_b_real)
             
-            # REGRA DOS CONCORRENTES: Mínimo de 2 pessoas apostando na classe para validar os +2 pontos extras
             classes_validas = {
                 'amarelos': len(classes_apostadores['amarelos']) >= 2,
                 'vermelhos': len(classes_apostadores['vermelhos']) >= 2,
@@ -362,6 +384,41 @@ def index():
     jogos = dados["jogos_arena"]
     
     conn = get_db_connection(); cur = conn.cursor()
+    
+    # STATUS DOS BUFFS DA ROLETA PARA HOJE
+    agora_dt = datetime.now()
+    hoje_inicio = agora_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    ontem_mesma_hora = agora_dt - timedelta(hours=24)
+    
+    cur.execute("SELECT premio, data_registro FROM log_roleta WHERE usuario = %s", (user_logado,))
+    user_logs = cur.fetchall()
+
+    deu_ruim_ativo = False
+    jackpots_hoje = 0
+    anti_espiao_hoje = 0
+
+    for l in user_logs:
+        premio, dt = l
+        if dt >= hoje_inicio:
+            if premio == 'JACKPOT': jackpots_hoje += 1
+            if premio == 'ANTI_ESPIAO': anti_espiao_hoje += 1
+        if dt >= ontem_mesma_hora and premio == 'DEU_RUIM':
+            deu_ruim_ativo = True
+
+    cur.execute("SELECT COUNT(*) FROM palpites WHERE usuario = %s AND turbo = TRUE AND data_registro >= %s", (user_logado, hoje_inicio))
+    turbos_usados = cur.fetchone()[0]
+
+    cur.execute("SELECT COUNT(*) FROM palpites WHERE usuario = %s AND oculto = TRUE AND data_registro >= %s", (user_logado, hoje_inicio))
+    ocultos_usados = cur.fetchone()[0]
+
+    turbos_disponiveis = 1 + (jackpots_hoje * 2) - turbos_usados
+    ocultos_disponiveis = 1 + anti_espiao_hoje - ocultos_usados
+
+    if user_logado == 'Teste':
+        turbos_disponiveis = 99
+        ocultos_disponiveis = 99
+        deu_ruim_ativo = False
+
     cur.execute("SELECT jogo_id, link_stream, amarelos, vermelhos, acrescimo, penaltis, artilheiro, status_manual FROM jogos_admin")
     admin_data = {r[0]: {'link': r[1], 'amarelos': r[2], 'vermelhos': r[3], 'acrescimo': r[4], 'penaltis': r[5], 'artilheiro': r[6], 'status_manual': r[7]} for r in cur.fetchall()}
     
@@ -377,7 +434,55 @@ def index():
     gasto_str = f"{total_pool:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     todas_as_chaves = list(USUARIOS_PERMITIDOS.keys()) + ["Teste"]
     
-    return render_template('index.html', usuario=user_logado, jogos=jogos, admin_data=admin_data, gasto=gasto_str, usuarios_lista=todas_as_chaves, manutencao=config_app["manutencao"])
+    return render_template('index.html', usuario=user_logado, jogos=jogos, admin_data=admin_data, gasto=gasto_str, 
+                           usuarios_lista=todas_as_chaves, manutencao=config_app["manutencao"],
+                           turbos_disponiveis=turbos_disponiveis, ocultos_disponiveis=ocultos_disponiveis,
+                           deu_ruim_ativo=deu_ruim_ativo)
+
+@app.route('/girar_roleta', methods=['POST'])
+def girar_roleta():
+    if 'usuario' not in session: return jsonify({"sucesso": False, "erro": "Sessão expirada."})
+    user = session['usuario']
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    agora = datetime.now()
+
+    if user != 'Teste':
+        cur.execute("SELECT data_registro FROM log_roleta WHERE usuario = %s ORDER BY data_registro DESC LIMIT 1", (user,))
+        last = cur.fetchone()
+        if last and (agora - last[0]) < timedelta(hours=12):
+            restante = timedelta(hours=12) - (agora - last[0])
+            horas, resto = divmod(restante.seconds, 3600)
+            minutos, _ = divmod(resto, 60)
+            return jsonify({"sucesso": False, "erro": f"Motor esfriando! Aguarde {horas}h e {minutos}m para girar novamente."})
+
+        stats, _, _, _ = processar_ranking_e_financas()
+        if stats.get(user, {}).get('pontos', 0) < 2:
+            return jsonify({"sucesso": False, "erro": "Saldo insuficiente! A ficha custa 2 pontos do ranking."})
+
+    custo = 0 if user == 'Teste' else 2
+    roll = random.randint(1, 100)
+    
+    if roll <= 10: 
+        premio = 'ANTI_ESPIAO'
+        msg = "🛡️ ESCUDO ANTI-ESPIÃO! A casa perdeu. Você ganhou +1 Aposta Oculta hoje."
+    elif roll <= 20: 
+        premio = 'JACKPOT'
+        msg = "🎰 JACKPOT!!! Estourou a banca. Você ganhou +2 Foguetes Turbo hoje."
+    elif roll <= 45: 
+        premio = 'PUNICAO_SEVERA'
+        msg = "💥 PUNIÇÃO SEVERA! Motor Fundido: Você acaba de perder 3 pontos."
+    else: 
+        premio = 'DEU_RUIM'
+        msg = "🚫 DEU RUIM! A casa levou. Corte de Giro: Turbo e X1 bloqueados por 24h."
+
+    cur.execute("INSERT INTO log_roleta (usuario, premio, custo, data_registro) VALUES (%s, %s, %s, %s)", (user, premio, custo, agora))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"sucesso": True, "mensagem": msg})
 
 @app.route('/perfil')
 def perfil():
@@ -392,7 +497,7 @@ def perfil():
     user_stats['taxa'] = f"{taxa:.1f}%"
     
     conquistas = []
-    if user_stats['maior_erro'] >= 5: conquistas.append({"nome": "🦶 PÉ FRIO / BOCA PODRE", "desc": "Errou um placar por uma diferença monumental de 5 ou mais gols. Calibra essa luneta!"})
+    if user_stats['maior_erro'] >= 5: conquistas.append({"nome": "🦶 PÉ FRIO / BOCA PODRE", "desc": "Errou um placar por uma diferença monumental de 5 ou mais gols."})
     if user_stats['cravadas'] >= 3: conquistas.append({"nome": "🔮 MÃE DINÁH DA ARENA", "desc": "Cravou 3 ou mais placares cheios na mosca. Visão de águia!"})
     if user_stats['artilheiros_certos'] >= 2: conquistas.append({"nome": "⚽ CHEIRA-GOL", "desc": "Acertou o artilheiro oficial da partida por 2 ou mais vezes."})
     if user_stats['pontos'] >= 30: conquistas.append({"nome": "👑 CAMISA 10 DA RESENHA", "desc": "Passou a marca histórica dos 30 pontos globais no bolão."})
@@ -442,10 +547,12 @@ def logout():
 @app.route('/apostar', methods=['POST'])
 def apostar():
     if 'usuario' not in session: return jsonify({"sucesso": False, "erro": "Sessão expirada."}), 401
+    user = session['usuario']
     dados = request.json
     jogo_id = dados.get('jogo_id')
     usa_turbo = dados.get('turbo', False)
     racha_target = dados.get('racha', '')
+    usa_ocultar = dados.get('ocultar', False)
     
     campos_numericos = ['gols_a', 'gols_b', 'amarelos', 'vermelhos', 'acrescimo']
     if not all(validar_num(dados.get(c)) for c in campos_numericos):
@@ -464,17 +571,48 @@ def apostar():
             return jsonify({"sucesso": False, "erro": "As apostas fecharam! Bola rolando a mais de 15 minutos."}), 400
 
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (session['usuario'], jogo_id))
+    cur.execute("SELECT id FROM palpites WHERE usuario = %s AND jogo_id = %s", (user, jogo_id))
     if cur.fetchone(): cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Aposta já enviada para este jogo!"}), 400
     
-    if usa_turbo:
-        cur.execute("SELECT COUNT(*) FROM palpites WHERE usuario = %s AND turbo = TRUE AND DATE(data_registro) = CURRENT_DATE", (session['usuario'],))
-        if cur.fetchone()[0] > 0:
-            cur.close(); conn.close()
-            return jsonify({"sucesso": False, "erro": "Você já gastou seu Botão Booster de hoje!"}), 400
+    # Validação de Limites Diários
+    agora_dt = datetime.now()
+    hoje_inicio = agora_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    ontem_mesma_hora = agora_dt - timedelta(hours=24)
+    
+    cur.execute("SELECT premio, data_registro FROM log_roleta WHERE usuario = %s", (user,))
+    user_logs = cur.fetchall()
 
-    cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, acrescimo, penaltis, autor_gol, turbo, racha_desafio) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                (session['usuario'], jogo_id, dados.get('gols_a'), dados.get('gols_b'), dados.get('amarelos', ''), dados.get('vermelhos', ''), dados.get('acrescimo', ''), dados.get('penaltis', ''), artilheiro, usa_turbo, racha_target))
+    deu_ruim_ativo = False
+    jackpots_hoje = 0
+    anti_espiao_hoje = 0
+    for l in user_logs:
+        premio, dt = l
+        if dt >= hoje_inicio:
+            if premio == 'JACKPOT': jackpots_hoje += 1
+            if premio == 'ANTI_ESPIAO': anti_espiao_hoje += 1
+        if dt >= ontem_mesma_hora and premio == 'DEU_RUIM': deu_ruim_ativo = True
+            
+    if deu_ruim_ativo and user != 'Teste':
+        if usa_turbo or racha_target != '':
+            cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Motor no Corte de Giro (Deu Ruim)! Turbo e X1 estão bloqueados."}), 400
+
+    cur.execute("SELECT COUNT(*) FROM palpites WHERE usuario = %s AND turbo = TRUE AND data_registro >= %s", (user, hoje_inicio))
+    turbos_usados = cur.fetchone()[0]
+    turbos_disponiveis = 1 + (jackpots_hoje * 2) - turbos_usados
+    
+    cur.execute("SELECT COUNT(*) FROM palpites WHERE usuario = %s AND oculto = TRUE AND data_registro >= %s", (user, hoje_inicio))
+    ocultos_usados = cur.fetchone()[0]
+    ocultos_disponiveis = 1 + anti_espiao_hoje - ocultos_usados
+    
+    if user == 'Teste': turbos_disponiveis = 99; ocultos_disponiveis = 99
+    
+    if usa_turbo and turbos_disponiveis <= 0:
+        cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Sem Botão Booster disponível hoje!"}), 400
+    if usa_ocultar and ocultos_disponiveis <= 0:
+        cur.close(); conn.close(); return jsonify({"sucesso": False, "erro": "Sem opção de Ocultar disponível hoje!"}), 400
+
+    cur.execute("INSERT INTO palpites (usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, acrescimo, penaltis, autor_gol, turbo, racha_desafio, oculto) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", 
+                (user, jogo_id, dados.get('gols_a'), dados.get('gols_b'), dados.get('amarelos', ''), dados.get('vermelhos', ''), dados.get('acrescimo', ''), dados.get('penaltis', ''), artilheiro, usa_turbo, racha_target, usa_ocultar))
     conn.commit(); cur.close(); conn.close()
     return jsonify({"sucesso": True})
 
@@ -526,38 +664,49 @@ def apostas_publicas():
     user_logado = session['usuario']
     dados = obter_dados_copa()
     todos_jogos = dados["jogos_arena"] + dados["jogos_futuros"]
-    mapa_jogos = {j['id']: f"{j['time_a']} x {j['time_b']}" for j in todos_jogos}
-    agora_ts = datetime.now(timezone.utc).timestamp()
+    mapa_jogos_obj = {j['id']: j for j in todos_jogos}
     
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT jogo_id FROM palpites WHERE usuario = %s", (user_logado,))
-    jogos_apostados = set([r[0] for r in cur.fetchall()])
-    
-    cur.execute('SELECT id, usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, acrescimo, penaltis, autor_gol, turbo, editado_admin FROM palpites ORDER BY jogo_id DESC, id DESC')
+    cur.execute('SELECT id, usuario, jogo_id, gols_a, gols_b, amarelos, vermelhos, acrescimo, penaltis, autor_gol, turbo, editado_admin, oculto FROM palpites ORDER BY jogo_id DESC, id DESC')
     palpites_db = cur.fetchall()
     
-    apostas_agrupadas = {}
-    
-    for r in palpites_db:
-        id_jogo = r[2]
-        nome_jogo = mapa_jogos.get(id_jogo, f"Jogo #{id_jogo}")
-        
-        jogo_obj = next((j for j in todos_jogos if j['id'] == id_jogo), None)
-        tempo_limite = jogo_obj['timestamp'] + 900 if jogo_obj else 0
-        is_aberto = agora_ts <= tempo_limite
-        ocultar_dados = is_aberto and (id_jogo not in jogos_apostados) and (user_logado != 'Teste')
-        
-        if id_jogo not in apostas_agrupadas: 
-            apostas_agrupadas[id_jogo] = {'nome': nome_jogo, 'ocultar': ocultar_dados, 'palpites': []}
-            
-        apostas_agrupadas[id_jogo]['palpites'].append({
-            'aposta_id': r[0], 'usuario': r[1], 'jogo_id': r[2], 'gols_a': r[3], 'gols_b': r[4],
-            'amarelos': r[5], 'vermelhos': r[6], 'acrescimo': r[7], 'penaltis': r[8], 'artilheiro': r[9], 'turbo': r[10], 'editado_admin': r[11]
-        })
-        
     cur.execute("SELECT jogo_id, amarelos, vermelhos, acrescimo, penaltis, artilheiro FROM jogos_admin")
     admin_data = {r[0]: {'amarelos': r[1], 'vermelhos': r[2], 'acrescimo': r[3], 'penaltis': r[4], 'artilheiro': r[5]} for r in cur.fetchall()}
     cur.close(); conn.close()
+
+    jogos_vivos = {}
+    jogos_breve = {}
+    jogos_encerrados = {}
+
+    for r in palpites_db:
+        id_jogo = r[2]
+        jogo_obj = mapa_jogos_obj.get(id_jogo)
+        if not jogo_obj: continue
+
+        status = jogo_obj['status']
+        if status == 'AO VIVO': target_dict = jogos_vivos
+        elif status == 'ENCERRADO': target_dict = jogos_encerrados
+        else: target_dict = jogos_breve
+
+        if id_jogo not in target_dict:
+            target_dict[id_jogo] = {'id': id_jogo, 'nome': f"{jogo_obj['time_a']} x {jogo_obj['time_b']}", 'status': status, 'palpites': []}
+
+        p_oculto = r[12]
+        p_user = r[1]
+        
+        # CHECAGEM DO CADEADO (ANTI-ESPIÃO)
+        esconder = False
+        if p_oculto and status != 'ENCERRADO' and user_logado != 'Teste' and p_user != user_logado:
+            esconder = True
+
+        target_dict[id_jogo]['palpites'].append({
+            'aposta_id': r[0], 'usuario': p_user, 'jogo_id': r[2], 
+            'gols_a': '🔒' if esconder else r[3], 'gols_b': '🔒' if esconder else r[4],
+            'amarelos': '🔒' if esconder else r[5], 'vermelhos': '🔒' if esconder else r[6],
+            'acrescimo': '🔒' if esconder else r[7], 'penaltis': '🔒' if esconder else r[8], 
+            'artilheiro': '🔒 Oculto' if esconder and r[9] else r[9],
+            'turbo': r[10], 'editado_admin': r[11], 'escondido': esconder
+        })
 
     resultados_oficiais = {}
     for j in todos_jogos:
@@ -568,7 +717,9 @@ def apostas_publicas():
             'acrescimo': str(adm.get('acrescimo', '')), 'penaltis': str(adm.get('penaltis', '')), 'artilheiro': str(adm.get('artilheiro', ''))
         }
 
-    return render_template('apostas.html', apostas_agrupadas=apostas_agrupadas, resultados_oficiais=resultados_oficiais, usuario=user_logado)
+    return render_template('apostas.html', 
+                           vivos=list(jogos_vivos.values()), breves=list(jogos_breve.values()), encerrados=list(jogos_encerrados.values()),
+                           resultados_oficiais=resultados_oficiais, usuario=user_logado)
 
 @app.route('/zerar_banco_oficina_secreta')
 def zerar_banco():
