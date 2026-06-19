@@ -9,22 +9,9 @@
         body { background-color: #121212; color: #e0e0e0; font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; }
         .container { max-width: 900px; margin: auto; padding: 20px; box-sizing: border-box; }
         
-        /* === BANNER EMUMAQUINAS (LETREIRO DIGITAL) === */
-        .ticker-wrap {
-            width: 100%; overflow: hidden; background-color: #5a189a; color: #fff;
-            padding: 6px 0; box-sizing: border-box; border-bottom: 2px solid #c77dff;
-            box-shadow: 0 4px 10px rgba(90, 24, 154, 0.5); position: relative; z-index: 100;
-        }
-        .ticker {
-            display: inline-block; white-space: nowrap; padding-right: 100%;
-            animation-iteration-count: infinite; animation-timing-function: linear;
-            animation-name: ticker; animation-duration: 25s; font-weight: bold; font-size: 0.85em;
-            letter-spacing: 2px; text-transform: uppercase;
-        }
-        @keyframes ticker {
-            0% { transform: translate3d(0, 0, 0); }
-            100% { transform: translate3d(-100%, 0, 0); }
-        }
+        .ticker-wrap { width: 100%; overflow: hidden; background-color: #5a189a; color: #fff; padding: 6px 0; box-sizing: border-box; border-bottom: 2px solid #c77dff; box-shadow: 0 4px 10px rgba(90, 24, 154, 0.5); position: relative; z-index: 100; }
+        .ticker { display: inline-block; white-space: nowrap; padding-right: 100%; animation: ticker 25s linear infinite; font-weight: bold; font-size: 0.85em; letter-spacing: 2px; text-transform: uppercase; }
+        @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
 
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; margin-top: 10px; flex-wrap: wrap; gap: 15px; }
         .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
@@ -32,6 +19,8 @@
         .btn-sair:hover { background: #ff4444; color: #000; }
         
         .caixa-infos { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .btn-roleta { background: linear-gradient(135deg, #ff0000, #ff4444); color: white; padding: 10px 15px; border-radius: 6px; font-weight: 900; font-size: 0.85em; text-transform: uppercase; border: 2px solid #ffcc00; cursor: pointer; transition: transform 0.2s; animation: pulse 2s infinite;}
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
         .hodometro { background: #1a1a1a; padding: 10px 15px; border-radius: 6px; border: 1px solid #00ff88; font-weight: bold; color: #00ff88; }
         .btn-publico { background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.85em; text-transform: uppercase; border: none; }
         .btn-secundario { background: #333; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.85em; text-transform: uppercase; border: 1px solid #555; }
@@ -47,7 +36,6 @@
         
         .jogo-row { background: #1e1e1e; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 5px solid #333; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position: relative; }
         .fase-info { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;}
-        
         .selo-palpitado { background: rgba(0,255,136,0.1); color: #00ff88; padding: 4px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #00ff88; font-size: 0.85em; white-space: nowrap; }
         
         .confronto { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -85,19 +73,8 @@
         .btn-admin-salvar { background: #5a189a; color: white; }
 
         /* === POP-UPS ANÚNCIOS === */
-        .modal-ad {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #111; padding: 20px; border-radius: 12px; border: 2px solid #ff0000;
-            width: 90%; max-width: 400px; z-index: 2500; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            text-align: center;
-        }
-        .btn-fechar-ad {
-            position: absolute; top: -20px; right: -20px; background: #ff4444; color: white;
-            border: 3px solid #fff; border-radius: 50%; width: 50px; height: 50px;
-            font-size: 1.8em; font-weight: 900; cursor: pointer; display: flex;
-            align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.8);
-            transition: 0.2s; z-index: 2501;
-        }
+        .modal-ad { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 20px; border-radius: 12px; border: 2px solid #ff0000; width: 90%; max-width: 400px; z-index: 2500; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center; }
+        .btn-fechar-ad { position: absolute; top: -20px; right: -20px; background: #ff4444; color: white; border: 3px solid #fff; border-radius: 50%; width: 50px; height: 50px; font-size: 1.8em; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.8); transition: 0.2s; z-index: 2501; }
         .btn-fechar-ad:hover { background: #ff0000; transform: scale(1.1); }
         .img-ad { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #333; transition: 0.2s; }
         .img-ad:hover { transform: scale(1.02); }
@@ -116,11 +93,7 @@
 <body>
 
 <!-- LETREIRO ANIMADO EMUMAQUINAS -->
-<div class="ticker-wrap">
-    <div class="ticker">
-        Ei, você,                🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador da resenha. Acelere fundo na nostalgia! 🏎️ 👾
-    </div>
-</div>
+<div class="ticker-wrap"><div class="ticker">Ei, você, 🎮 🕹️ Jogue os maiores clássicos no EMUMAQUINAS! O melhor emulador da resenha. Acelere fundo na nostalgia! 🏎️ 👾</div></div>
 
 <div id="toast-container"></div>
 
@@ -128,6 +101,7 @@
     <div class="header">
         <h2>⚽ ARENA <a href="{{ url_for('logout') }}" class="btn-sair">SAIR</a></h2>
         <div class="caixa-infos">
+            <button class="btn-roleta" onclick="abrirRoleta()">🎰 ROLETA CASSINO</button>
             <div class="hodometro" title="Total Global Gasto no Grupo">TOTAL DO GRUPO: R$ {{ gasto }}</div>
             <a href="{{ url_for('perfil') }}" class="btn-perfil">🎛️ MEU PERFIL</a>
             <a href="{{ url_for('apostas_publicas') }}" class="btn-publico">📊 APOSTAS</a>
@@ -210,11 +184,8 @@
             {% else %}{% set _ = jogos_breve.append(j) %}{% endif %}
         {% endfor %}
 
-        {# Inverte os jogos EM BREVE para o próximo a jogar aparecer no topo #}
         {% set jogos_breve = jogos_breve|reverse %}
-
         {% for jogo in jogos_vivo %} {{ render_jogo(jogo) }} {% endfor %}
-
         {% for jogo in jogos_breve %} {{ render_jogo(jogo) }} {% endfor %}
 
         {% if jogos_encerrados|length > 0 %}
@@ -237,23 +208,49 @@
 
 <div class="overlay" id="overlay" onclick="fecharModais()"></div>
 
+<!-- Modal ROLETA CASSINO -->
+<div id="modal-roleta" class="modal-box" style="border-color: #ff0000;">
+    <h3 style="color: #ff0000; margin-top: 0; border-bottom: 1px solid #ff4444; padding-bottom: 10px;">🎰 ROLETA DE ALTO RISCO</h3>
+    <p style="color: #aaa; font-size: 0.85em;">Gire por sua conta e risco (Custo: 2 Pontos). Disponível a cada 12 horas. A casa nunca perde!</p>
+    
+    <ul style="text-align:left; color:#fff; font-size:0.85em; list-style-type: none; padding-left: 0;">
+        <li style="margin-bottom: 5px;">🛡️ <span style="color:#00ff88; font-weight:bold;">10% Anti-Espião:</span> +1 Aposta Oculta hoje</li>
+        <li style="margin-bottom: 5px;">🚀 <span style="color:#ffcc00; font-weight:bold;">10% Jackpot:</span> +2 Foguetes Turbo hoje</li>
+        <li style="margin-bottom: 5px;">💥 <span style="color:#ff4444; font-weight:bold;">25% Punição Severa:</span> Perde 3 pontos limpos</li>
+        <li style="margin-bottom: 5px;">🚫 <span style="color:#ff9900; font-weight:bold;">55% Deu Ruim:</span> Turbo e X1 bloqueados por 24h</li>
+    </ul>
+
+    <button id="btn-girar-roleta" onclick="executarGiroRoleta()" class="btn-admin-salvar" style="background: #ff0000; box-shadow: 0 4px 15px rgba(255,0,0,0.5);">GIRAR A ROLETA (-2 PTS)</button>
+    <div id="roleta-resultado" style="margin-top: 20px; font-weight: 900; font-size: 1.1em; text-align: center;"></div>
+</div>
+
 <div id="modal-aposta" class="modal-box">
     <h3 style="color: white; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;" id="modal-titulo">Jogo</h3>
     <p style="color: #ffcc00; font-size: 0.85em; font-weight: bold; margin-bottom: 15px;">💰 R$ 0,50 por classe validada.</p>
     
-    <label class="caixa-turbo">
-        <input type="checkbox" id="turbo_boost" style="transform: scale(1.5);" onchange="calcularTotal()"> 🚀 ATIVAR BOOSTER (1 por dia)
+    {% if deu_ruim_ativo %}
+    <div style="background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; color: #ff4444; padding: 10px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 0.85em; margin-bottom: 15px;">
+        🚫 CORTE DE GIRO ATIVO! (Deu Ruim na Roleta)<br>Seu Turbo e Racha X1 estão bloqueados.
+    </div>
+    {% endif %}
+
+    <label class="caixa-turbo" style="{% if deu_ruim_ativo %}opacity: 0.4; pointer-events: none;{% endif %}">
+        <input type="checkbox" id="turbo_boost" style="transform: scale(1.5);" onchange="calcularTotal()" {% if deu_ruim_ativo %}disabled{% endif %}> 🚀 ATIVAR BOOSTER (Disp: {{ turbos_disponiveis }})
     </label>
 
-    <div class="caixa-racha">
+    <div class="caixa-racha" style="{% if deu_ruim_ativo %}opacity: 0.4; pointer-events: none;{% endif %}">
         ⚔️ Racha X1 (Dobra pontos do vencedor):
-        <select id="racha_user" style="width: auto; flex-grow: 1;">
+        <select id="racha_user" style="width: auto; flex-grow: 1;" {% if deu_ruim_ativo %}disabled{% endif %}>
             <option value="">Sem Desafio</option>
             {% for u in usuarios_lista %}
                 {% if u != usuario %}<option value="{{ u }}">{{ u }}</option>{% endif %}
             {% endfor %}
         </select>
     </div>
+
+    <label class="caixa-turbo" style="border-color: #00ff88; color: #00ff88;">
+        <input type="checkbox" id="ocultar_aposta" style="transform: scale(1.5);" onchange="calcularTotal()"> 🕵️ OCULTAR APOSTA (Disp: {{ ocultos_disponiveis }})
+    </label>
 
     <div id="form-apostas">
         <input type="hidden" id="jogo_id">
@@ -293,7 +290,6 @@
     <button class="btn-admin-salvar" id="btn-admin-salvar" onclick="salvarAdminJogo()">Salvar Alterações</button>
 </div>
 
-<!-- Modal Anúncios Zueira (Ao carregar) -->
 <div class="overlay" id="overlay-anuncio" onclick="fecharAnuncio()"></div>
 <div id="modal-anuncio" class="modal-box" style="border-color: #ff4444; text-align: center; background: #111;">
     <h2 style="color: #ffcc00; font-size: 1.8em; margin-top: 0;">🚨 ATENÇÃO!</h2>
@@ -301,7 +297,6 @@
     <button class="btn-admin-salvar" style="background: #ffcc00; color: #000; font-weight: 900;" onclick="fecharAnuncio()">PULAR ANÚNCIO ⏭️</button>
 </div>
 
-<!-- O POPUP DO YOUTUBE (50% de chance) -->
 <div class="overlay" id="overlay-yt" onclick="fecharAnuncios()" style="z-index: 2499;"></div>
 <div id="modal-yt" class="modal-ad">
     <button class="btn-fechar-ad" onclick="fecharAnuncios()">✖</button>
@@ -312,15 +307,11 @@
     </a>
 </div>
 
-<!-- O POPUP DO AMIGO (50% de chance) -->
 <div class="overlay" id="overlay-amigo" onclick="fecharAnuncios()" style="z-index: 2499;"></div>
 <div id="modal-amigo" class="modal-ad" style="border-color: #c77dff;">
-    <!-- BOTÃO X ADICIONADO E DESTACADO PARA O PARCEIRO AQUI -->
     <button class="btn-fechar-ad" onclick="fecharAnuncios()" style="background: #5a189a; border-color: #c77dff;">✖</button>
-    
     <h3 style="color: #fff; margin-top: 5px; margin-bottom: 5px; text-transform: uppercase;">🚀 Parceiro Oficial</h3>
     <p style="color: #aaa; font-size: 0.9em; margin-bottom: 15px;">Dicas exclusivas, bastidores e muito mais!</p>
-    
     <img src="{{ url_for('static', filename='anuncio_amigo.jpg') }}" alt="Anúncio Parceiro" class="img-ad" style="margin-bottom: 15px; border-color: #5a189a;">
     <a href="https://www.instagram.com/pedroh_acioly/" target="_blank" onclick="fecharAnuncios()" class="btn-admin-salvar" style="background: #c77dff; color: #fff; text-decoration: none; display: block; margin-top: 5px;">SAIBA MAIS</a>
 </div>
@@ -369,7 +360,36 @@
     function fecharModais() {
         document.getElementById('modal-aposta').style.display = 'none';
         document.getElementById('modal-admin').style.display = 'none';
+        document.getElementById('modal-roleta').style.display = 'none';
         document.getElementById('overlay').style.display = 'none';
+        document.getElementById('roleta-resultado').innerHTML = '';
+    }
+
+    function abrirRoleta() {
+        document.getElementById('modal-roleta').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function executarGiroRoleta() {
+        const btn = document.getElementById('btn-girar-roleta');
+        const resDiv = document.getElementById('roleta-resultado');
+        btn.innerText = "GIRANDO A ROLETA..."; btn.disabled = true;
+        resDiv.innerHTML = '<span style="color:#ffcc00;">A rodar os dados... 🎲</span>';
+        
+        setTimeout(() => {
+            fetch('/girar_roleta', { method: 'POST' }).then(r => r.json()).then(data => {
+                if (data.sucesso) { 
+                    resDiv.innerHTML = data.mensagem; 
+                    setTimeout(() => window.location.reload(), 3500); 
+                } else { 
+                    resDiv.innerHTML = `<span style="color:#ff4444;">❌ ${data.erro}</span>`;
+                    btn.innerText = "GIRAR A ROLETA (-2 PTS)"; btn.disabled = false;
+                }
+            }).catch(err => { 
+                resDiv.innerHTML = `<span style="color:#ff4444;">Erro na conexão com o cassino.</span>`;
+                btn.innerText = "GIRAR A ROLETA (-2 PTS)"; btn.disabled = false; 
+            });
+        }, 1500);
     }
 
     function abrirModal(id, timeA, timeB, status, timestamp) {
@@ -379,6 +399,7 @@
         
         document.querySelectorAll('.bet-input').forEach(i => i.value = '');
         document.getElementById('turbo_boost').checked = false;
+        document.getElementById('ocultar_aposta').checked = false;
         document.getElementById('racha_user').value = '';
         calcularTotal(); 
         
@@ -400,7 +421,8 @@
             let totalDinheiro = (c * 0.50).toFixed(2).replace('.', ',');
             let textoTurbo = document.getElementById('turbo_boost').checked ? " + 🚀" : "";
             let textoRacha = document.getElementById('racha_user').value !== '' ? " + ⚔️ X1" : "";
-            btn.innerText = `Confirmar Aposta - R$ ${totalDinheiro}${textoTurbo}${textoRacha}`;
+            let textoOculto = document.getElementById('ocultar_aposta').checked ? " + 🕵️ Ocultar" : "";
+            btn.innerText = `Confirmar Aposta - R$ ${totalDinheiro}${textoTurbo}${textoRacha}${textoOculto}`;
             btn.disabled = false;
         } else {
             btn.innerText = `SELECIONE UM PALPITE`;
@@ -419,7 +441,7 @@
                 gols_b: document.getElementById('gols_b').value, amarelos: document.getElementById('amarelos').value, 
                 vermelhos: document.getElementById('vermelhos').value, acrescimo: document.getElementById('acrescimo').value, 
                 artilheiro: document.getElementById('artilheiro').value, turbo: document.getElementById('turbo_boost').checked,
-                racha: document.getElementById('racha_user').value
+                racha: document.getElementById('racha_user').value, ocultar: document.getElementById('ocultar_aposta').checked
             })
         }).then(r => r.json()).then(data => {
             if (data.sucesso) { showToast('Aposta confirmada com sucesso!', 'success'); setTimeout(() => window.location.reload(), 1500); } 
@@ -429,9 +451,7 @@
 
     function forcarAtualizacaoAPI() {
         if(!confirm("Tem certeza que quer forçar a atualização imediata da API de jogos?")) return;
-        fetch('/admin_forcar_update', { method: 'POST' }).then(r => r.json()).then(d => {
-            if(d.sucesso) { alert("API Atualizada com sucesso!"); window.location.reload(); }
-        });
+        fetch('/admin_forcar_update', { method: 'POST' }).then(r => r.json()).then(d => { if(d.sucesso) window.location.reload(); });
     }
 
     function acionarManutencao() {
@@ -482,7 +502,6 @@
         document.getElementById('modal-anuncio').style.display = 'none';
     }
 
-    // === LÓGICA DE POP-UPS IMUNES AO RELOAD (LOCALSTORAGE) ===
     function fecharAnuncios() {
         document.getElementById('overlay-yt').style.display = 'none'; document.getElementById('modal-yt').style.display = 'none';
         document.getElementById('overlay-amigo').style.display = 'none'; document.getElementById('modal-amigo').style.display = 'none';
@@ -495,23 +514,18 @@
         // 150000 ms = exatos 2 minutos e 30 segundos
         if (!ultimoPopup || (agora - parseInt(ultimoPopup)) > 150000) {
             if (Math.random() < 0.5) {
-                // 50% Canal do Máquinas
-                document.getElementById('overlay-yt').style.display = 'block';
-                document.getElementById('modal-yt').style.display = 'block';
+                document.getElementById('overlay-yt').style.display = 'block'; document.getElementById('modal-yt').style.display = 'block';
             } else {
-                // 50% Parceiro Pedro
-                document.getElementById('overlay-amigo').style.display = 'block';
-                document.getElementById('modal-amigo').style.display = 'block';
+                document.getElementById('overlay-amigo').style.display = 'block'; document.getElementById('modal-amigo').style.display = 'block';
             }
-            // Regista a nova hora em que o anúncio disparou
             localStorage.setItem('ultimoPopupTime', agora);
         }
     }
 
     window.onload = function() {
         mostrarAnuncioSurpresa(); 
-        gerenciarPopupsHibridos(); // Checa na hora que abre o site
-        setInterval(gerenciarPopupsHibridos, 5000); // Fica a monitorizar a cada 5 segundos de forma silenciosa
+        gerenciarPopupsHibridos(); 
+        setInterval(gerenciarPopupsHibridos, 5000);
     };
 </script>
 </body>

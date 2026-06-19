@@ -13,6 +13,10 @@
         .header h2 { color: #fff; margin: 0; font-size: 1.5em; font-weight: 900; }
         .btn-voltar { background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; border: 1px solid #444; transition: 0.2s;}
         
+        .sessao-titulo { margin-top: 30px; padding-bottom: 10px; border-bottom: 2px solid #333; color: #fff; font-size: 1.3em; text-transform: uppercase; }
+        .sessao-vivos { border-color: #ff3333; color: #ff3333; }
+        .sessao-breves { border-color: #fff; }
+
         .card-jogo { background: #1a1a1a; border-radius: 8px; margin-bottom: 30px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .header-jogo { background: #222; padding: 15px 20px; font-size: 1.2em; font-weight: bold; color: #00ff88; border-bottom: 2px solid #333; }
         
@@ -22,13 +26,10 @@
         th { background-color: #151515; color: #888; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
         tr:hover { background-color: #222; }
         
-        tr.linha-bingo { background-color: rgba(255, 204, 0, 0.1); border-left: 5px solid #ffcc00; }
-        tr.linha-bingo:hover { background-color: rgba(255, 204, 0, 0.15); }
-        .bingo-badge { font-size: 1.2em; cursor: help; }
-
         .user-highlight { font-weight: bold; color: #fff; text-align: left; }
         .placar { font-size: 1.2em; font-weight: bold; color: #00ff88; background: rgba(0, 255, 136, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 255, 136, 0.2); }
         .dado-vazio { color: #555; }
+        .oculto-badge { color: #ffcc00; font-size: 1.2em; font-weight: bold; }
         
         .btn-editar { background: transparent; border: 1px solid #5a189a; color: #c77dff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold;}
         
@@ -37,8 +38,11 @@
         .input-group { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; }
         .input-group input { width: 90px; padding: 8px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; text-align: center;}
         .input-group input[type="text"] { width: 160px; text-align: left; }
-        
         .btn-admin-salvar { width: 100%; padding: 15px; background: #5a189a; color: white; border: none; font-weight: bold; font-size: 1em; border-radius: 6px; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
+
+        .toggle-antigos { cursor: pointer; background: #151515; color: #888; font-weight: bold; text-align: center; border: 1px dashed #444; padding: 15px; border-radius: 6px; margin-top: 30px; margin-bottom: 20px; transition: 0.2s; text-transform: uppercase;}
+        .toggle-antigos:hover { background: #222; color: #fff; border-color: #888;}
+        .antigos-box { display: none; margin-top: 15px; }
 
         #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px;}
         .toast-msg { padding: 15px 25px; border-radius: 8px; font-weight: bold; font-size: 0.9em; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateX(120%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px; color: white;}
@@ -46,12 +50,7 @@
         .toast-success { background: linear-gradient(135deg, #00b09b, #96c93d); }
         .toast-error { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
 
-        /* NOVAS CLASSES PARA ACERTOS NA MOSCA */
-        @keyframes piscar-verde {
-            0% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); }
-            50% { background: #00ff88; color: #000; box-shadow: 0 0 15px #00ff88; border-color: #00ff88; transform: scale(1.1); }
-            100% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); }
-        }
+        @keyframes piscar-verde { 0% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); } 50% { background: #00ff88; color: #000; box-shadow: 0 0 15px #00ff88; border-color: #00ff88; transform: scale(1.1); } 100% { background: rgba(0, 255, 136, 0.1); box-shadow: 0 0 0 rgba(0,255,136,0); } }
         .placar-piscando { animation: piscar-verde 1.2s infinite !important; border-radius: 6px; padding: 5px 12px; display: inline-block; }
         .acerto-limao { background: #00ff88; color: #000 !important; font-weight: bold; padding: 4px 8px; border-radius: 4px; box-shadow: 0 0 10px rgba(0,255,136,0.6); }
 
@@ -72,73 +71,99 @@
         <a href="{{ url_for('index') }}" class="btn-voltar">⬅ VOLTAR PARA A ARENA</a>
     </div>
 
-    {% if apostas_agrupadas|length == 0 %}
-        <div style="text-align: center; padding: 50px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;">
-            <h3 style="color: #00ff88;">A pista está vazia...</h3>
+    {% macro renderizar_tabela(info) %}
+    <div class="card-jogo">
+        <div class="header-jogo">⚽ {{ info.nome }}</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Jogador</th>
+                        <th>Placar</th>
+                        <th>Amarelos</th>
+                        <th>Vermelhos</th>
+                        <th>Acréscimos</th>
+                        <th>Artilheiro</th>
+                        {% if usuario == 'Teste' %}<th>Moderar</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in info.palpites %}
+                    {% set res = resultados_oficiais.get(p.jogo_id, {}) %}
+                    {% set a_plac = (not p.escondido and res.gols_a != 'N/A' and p.gols_a|string == res.gols_a|string and p.gols_b|string == res.gols_b|string) %}
+                    {% set a_am = (not p.escondido and res.amarelos != '' and p.amarelos|string == res.amarelos|string) %}
+                    {% set a_vm = (not p.escondido and res.vermelhos != '' and p.vermelhos|string == res.vermelhos|string) %}
+                    {% set a_ac = (not p.escondido and res.acrescimo != '' and p.acrescimo|string == res.acrescimo|string) %}
+                    {% set a_art = (not p.escondido and res.artilheiro != '' and p.artilheiro|lower == res.artilheiro|lower) %}
+                    
+                    <tr {% if p.editado_admin %}style="background-color: rgba(255, 68, 68, 0.1); border-left: 4px solid #ff4444;" title="Editado pelo Admin/VAR"{% endif %}>
+                        <td class="user-highlight">
+                            {{ p.usuario }} 
+                            {% if p.editado_admin %}<span style="font-size: 0.7em; color:#ff4444; margin-left: 5px;">[VAR]</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.escondido %}
+                                <span class="oculto-badge">🔒 Oculto</span>
+                            {% elif p.gols_a and p.gols_b %}
+                                <span class="placar {% if a_plac %}placar-piscando{% endif %}">{{ p.gols_a }} x {{ p.gols_b }}</span>
+                                {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
+                            {% else %}<span class="dado-vazio">-</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.escondido %}<span class="oculto-badge">🔒</span>
+                            {% elif p.amarelos %}<span class="{% if a_am %}acerto-limao{% endif %}">{{ p.amarelos }}</span>
+                            {% else %}<span class="dado-vazio">-</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.escondido %}<span class="oculto-badge">🔒</span>
+                            {% elif p.vermelhos %}<span class="{% if a_vm %}acerto-limao{% endif %}">{{ p.vermelhos }}</span>
+                            {% else %}<span class="dado-vazio">-</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.escondido %}<span class="oculto-badge">🔒</span>
+                            {% elif p.acrescimo %}<span class="{% if a_ac %}acerto-limao{% endif %}">{{ p.acrescimo }}'</span>
+                            {% else %}<span class="dado-vazio">-</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.escondido %}<span class="oculto-badge" style="font-size:0.9em;">🔒 Segredo</span>
+                            {% elif p.artilheiro %}<span class="{% if a_art %}acerto-limao{% endif %}">{{ p.artilheiro }}</span>
+                            {% else %}<span class="dado-vazio">-</span>{% endif %}
+                        </td>
+                        
+                        {% if usuario == 'Teste' %}
+                        <td>
+                            <button class="btn-editar" onclick="abrirModalEdicao({{ p.aposta_id }}, '{{ p.usuario }}', '{{ p.gols_a }}', '{{ p.gols_b }}', '{{ p.amarelos }}', '{{ p.vermelhos }}', '{{ p.acrescimo }}', '{{ p.penaltis }}', '{{ p.artilheiro }}')">✏️</button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+    </div>
+    {% endmacro %}
+
+    <h3 class="sessao-titulo sessao-vivos">🔴 AO VIVO</h3>
+    {% if vivos|length > 0 %}
+        {% for info in vivos %}{{ renderizar_tabela(info) }}{% endfor %}
     {% else %}
-        {% for id_jogo, info in apostas_agrupadas.items() %}
-        <div class="card-jogo">
-            <div class="header-jogo">⚽ {{ info.nome }}</div>
-            
-            {% if info.ocultar %}
-                <div style="padding: 40px 20px; text-align: center; color: #ffcc00; font-weight: bold; background: #151515;">
-                    <span style="font-size: 2em; display: block; margin-bottom: 10px;">🔒</span>
-                    O PRAZO DESTE JOGO AINDA ESTÁ ABERTO!<br>
-                    <span style="font-size: 0.85em; color: #aaa; font-weight: normal; margin-top: 10px; display: inline-block;">Faça o seu palpite na Arena primeiro para desbloquear a visão e poder espionar as apostas dos adversários.</span>
-                </div>
-            {% else %}
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="text-align: left;">Jogador</th>
-                                <th>Placar</th>
-                                <th>Amarelos</th>
-                                <th>Vermelhos</th>
-                                <th>Acréscimos</th>
-                                <th>Artilheiro</th>
-                                {% if usuario == 'Teste' %}<th>Moderar</th>{% endif %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in info.palpites %}
-                            {% set res = resultados_oficiais.get(p.jogo_id, {}) %}
-                            {% set a_plac = (res.gols_a != 'N/A' and p.gols_a|string == res.gols_a|string and p.gols_b|string == res.gols_b|string) %}
-                            {% set a_am = (res.amarelos != '' and p.amarelos|string == res.amarelos|string) %}
-                            {% set a_vm = (res.vermelhos != '' and p.vermelhos|string == res.vermelhos|string) %}
-                            {% set a_ac = (res.acrescimo != '' and p.acrescimo|string == res.acrescimo|string) %}
-                            {% set a_art = (res.artilheiro != '' and p.artilheiro|lower == res.artilheiro|lower) %}
-                            
-                            <tr {% if p.editado_admin %}style="background-color: rgba(255, 68, 68, 0.1); border-left: 4px solid #ff4444;" title="Editado pelo Admin/VAR"{% endif %}>
-                                <td class="user-highlight">
-                                    {{ p.usuario }} 
-                                    {% if p.editado_admin %}<span style="font-size: 0.7em; color:#ff4444; margin-left: 5px;">[VAR]</span>{% endif %}
-                                </td>
-                                <td>
-                                    {% if p.gols_a and p.gols_b %}
-                                        <span class="placar {% if a_plac %}placar-piscando{% endif %}">{{ p.gols_a }} x {{ p.gols_b }}</span>
-                                        {% if p.turbo %}<span style="font-size: 1.2em;" title="Booster Ativado">🚀</span>{% endif %}
-                                    {% else %}<span class="dado-vazio">-</span>{% endif %}
-                                </td>
-                                <td>{% if p.amarelos %}<span class="{% if a_am %}acerto-limao{% endif %}">{{ p.amarelos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                                <td>{% if p.vermelhos %}<span class="{% if a_vm %}acerto-limao{% endif %}">{{ p.vermelhos }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                                <td>{% if p.acrescimo %}<span class="{% if a_ac %}acerto-limao{% endif %}">{{ p.acrescimo }}'</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                                <td>{% if p.artilheiro %}<span class="{% if a_art %}acerto-limao{% endif %}">{{ p.artilheiro }}</span>{% else %}<span class="dado-vazio">-</span>{% endif %}</td>
-                                
-                                {% if usuario == 'Teste' %}
-                                <td>
-                                    <button class="btn-editar" onclick="abrirModalEdicao({{ p.aposta_id }}, '{{ p.usuario }}', '{{ p.gols_a }}', '{{ p.gols_b }}', '{{ p.amarelos }}', '{{ p.vermelhos }}', '{{ p.acrescimo }}', '{{ p.penaltis }}', '{{ p.artilheiro }}')">✏️</button>
-                                </td>
-                                {% endif %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </div>
-        {% endfor %}
+        <p style="color: #888;">Nenhum jogo rolando no momento.</p>
+    {% endif %}
+
+    <h3 class="sessao-titulo sessao-breves">⏳ EM BREVE</h3>
+    {% if breves|length > 0 %}
+        {% for info in breves %}{{ renderizar_tabela(info) }}{% endfor %}
+    {% else %}
+        <p style="color: #888;">Nenhum jogo próximo com apostas cadastradas.</p>
+    {% endif %}
+
+    {% if encerrados|length > 0 %}
+    <div class="toggle-antigos" onclick="document.getElementById('cx_encerrados').style.display = document.getElementById('cx_encerrados').style.display === 'none' ? 'block' : 'none';">
+        📁 Ver Apostas de Jogos Encerrados ({{ encerrados|length }}) ▼
+    </div>
+    <div id="cx_encerrados" class="antigos-box">
+        {% for info in encerrados %}{{ renderizar_tabela(info) }}{% endfor %}
+    </div>
     {% endif %}
 </div>
 
@@ -177,36 +202,24 @@
     }
 
     function abrirModalEdicao(id, user, golsA, golsB, amarelos, vermelhos, acrescimo, penaltis, artilheiro) {
-        document.getElementById('edit_id').value = id;
-        document.getElementById('mod_user').innerText = user;
-        document.getElementById('edit_gols_a').value = golsA !== 'None' ? golsA : '';
-        document.getElementById('edit_gols_b').value = golsB !== 'None' ? golsB : '';
-        document.getElementById('edit_amarelos').value = amarelos !== 'None' ? amarelos : '';
-        document.getElementById('edit_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
-        document.getElementById('edit_acrescimo').value = acrescimo !== 'None' ? acrescimo : '';
-        document.getElementById('edit_penaltis').value = penaltis !== 'None' ? penaltis : '';
+        document.getElementById('edit_id').value = id; document.getElementById('mod_user').innerText = user;
+        document.getElementById('edit_gols_a').value = golsA !== 'None' ? golsA : ''; document.getElementById('edit_gols_b').value = golsB !== 'None' ? golsB : '';
+        document.getElementById('edit_amarelos').value = amarelos !== 'None' ? amarelos : ''; document.getElementById('edit_vermelhos').value = vermelhos !== 'None' ? vermelhos : '';
+        document.getElementById('edit_acrescimo').value = acrescimo !== 'None' ? acrescimo : ''; document.getElementById('edit_penaltis').value = penaltis !== 'None' ? penaltis : '';
         document.getElementById('edit_artilheiro').value = artilheiro !== 'None' ? artilheiro : '';
         
         document.getElementById('btn-edit-salvar').style.display = 'block';
-
-        document.getElementById('modal-editar').style.display = 'block';
-        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('modal-editar').style.display = 'block'; document.getElementById('overlay').style.display = 'block';
     }
 
     function salvarEdicaoAposta() {
-        const btn = document.getElementById('btn-edit-salvar');
-        btn.innerText = "Salvando..."; btn.disabled = true;
+        const btn = document.getElementById('btn-edit-salvar'); btn.innerText = "Salvando..."; btn.disabled = true;
         fetch('/admin_editar_aposta', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                aposta_id: document.getElementById('edit_id').value,
-                gols_a: document.getElementById('edit_gols_a').value,
-                gols_b: document.getElementById('edit_gols_b').value,
-                amarelos: document.getElementById('edit_amarelos').value,
-                vermelhos: document.getElementById('edit_vermelhos').value,
-                acrescimo: document.getElementById('edit_acrescimo').value,
-                penaltis: document.getElementById('edit_penaltis').value,
-                artilheiro: document.getElementById('edit_artilheiro').value
+                aposta_id: document.getElementById('edit_id').value, gols_a: document.getElementById('edit_gols_a').value, gols_b: document.getElementById('edit_gols_b').value,
+                amarelos: document.getElementById('edit_amarelos').value, vermelhos: document.getElementById('edit_vermelhos').value,
+                acrescimo: document.getElementById('edit_acrescimo').value, penaltis: document.getElementById('edit_penaltis').value, artilheiro: document.getElementById('edit_artilheiro').value
             })
         }).then(r => r.json()).then(data => {
             if (data.sucesso) { showToast('Aposta alterada!', 'success'); setTimeout(() => window.location.reload(), 1500); } 

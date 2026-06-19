@@ -93,14 +93,16 @@
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9em; margin-top: 15px; min-width: 500px;">
                     <tr style="border-bottom: 2px solid #333; color: #888; text-transform: uppercase;">
-                        <th style="padding: 10px;">Jogo Oficial</th>
+                        <th style="padding: 10px;">Jogo Oficial / Ação</th>
                         <th style="padding: 10px; text-align: center;">Pontos</th>
                         <th style="padding: 10px;">O que você acertou?</th>
                     </tr>
                     {% for ex in stats.extrato|reverse %}
                     <tr style="border-bottom: 1px solid #222; transition: 0.2s;">
                         <td style="padding: 12px 10px; color: #fff; font-weight: bold;">{{ ex.jogo }}</td>
-                        <td style="padding: 12px 10px; color: #00ff88; font-weight: 900; font-size: 1.1em; text-align: center;">+{{ ex.pontos }}</td>
+                        <td style="padding: 12px 10px; color: {% if ex.pontos < 0 %}#ff4444{% else %}#00ff88{% endif %}; font-weight: 900; font-size: 1.1em; text-align: center;">
+                            {% if ex.pontos > 0 %}+{% endif %}{{ ex.pontos }}
+                        </td>
                         <td style="padding: 12px 10px; color: #aaa;">{{ ex.desc }}</td>
                     </tr>
                     {% endfor %}
@@ -122,17 +124,14 @@
 </div>
 
 <script>
-    // Recupera o historico do python e converte pra JS
     const historico = {{ stats.historico_grafico | tojson }};
-    
-    // Gerar um array acumulativo de pontos
     let acumulado = 0;
     const dataAcumulada = historico.map(pts => {
         acumulado += pts;
         return acumulado;
     });
 
-    const labels = historico.map((_, i) => 'Jogo ' + (i+1));
+    const labels = historico.map((_, i) => 'Op #' + (i+1));
 
     const ctx = document.getElementById('perfChart').getContext('2d');
     const perfChart = new Chart(ctx, {
